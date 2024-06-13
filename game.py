@@ -3,6 +3,18 @@ import sys
 import pygame
 
 
+class GameObject:
+    def __init__(self, image_path, position):
+        self.image = pygame.image.load(image_path)
+        self.position = list(position)
+
+    def update(self, movement):
+        self.position[1] += movement[1] - movement[0]
+
+    def render(self, screen):
+        screen.blit(self.image, self.position)
+
+
 class Game:
     def __init__(self):
         pygame.init()
@@ -20,13 +32,17 @@ class Game:
         
         self.fps = 75
         self.dt = 1
+
         
-        self.games_objects = []
+        self.movement = [False, False]
+
+        self.player = GameObject('data/images/entities/player/idle/00.png', [160, 260])
+
+        self.games_objects = [self.player]
                 
     def run(self):
         
         while True:
-
             
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -69,7 +85,7 @@ class Game:
         self.display.fill((14, 219, 248))
         for game_object in self.games_objects:
             game_object.render(self.display)
-        pygame.draw.rect(self.display, (255, 0, 0), (32, 32, 32, 32))
+       
     
         # Calculez la nouvelle taille de la copie de self.display tout en conservant le rapport d'aspect
         screen_width, screen_height = self.screen.get_size()
