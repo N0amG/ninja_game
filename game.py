@@ -22,11 +22,11 @@ class Game:
         pygame.init()
 
         pygame.display.set_caption('ninja game')
-        self.screen = pygame.display.set_mode((640, 480), pygame.RESIZABLE)
+        self.screen = pygame.display.set_mode((1080, 720), pygame.RESIZABLE)
         
         self.aspect_ratio = self.screen.get_width() / self.screen.get_height()
         
-        self.display = pygame.Surface((320, 240))
+        self.display = pygame.Surface((self.screen.get_width()//3, self.screen.get_height()//3))
         
         self.display_original_size = self.display.get_size()
         
@@ -99,7 +99,7 @@ class Game:
             new_height = int(screen_width / self.aspect_ratio)
     
         # Créez une copie redimensionnée de self.display
-        scaled_display = pygame.transform.smoothscale(self.display, (new_width, new_height))
+        scaled_display = pygame.transform.scale(self.display, (new_width, new_height))
     
         # Dessinez la copie redimensionnée de self.display au centre de self.screen
         display_rect = scaled_display.get_rect(center=self.screen.get_rect().center)
