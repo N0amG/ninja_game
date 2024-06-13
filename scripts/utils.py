@@ -1,19 +1,25 @@
 import pygame
 import os
 
-BASE_IMAGE_PATH = 'data/images/'
+BASE_IMG_PATH = 'data/images/'
 
 def load_image(path):
-    img = pygame.image.load(BASE_IMAGE_PATH + path).convert()
-    img.set_colorkey((0, 0, 0))
-    return img
-
+    try:
+        img = pygame.image.load(BASE_IMG_PATH + path).convert()
+        img.set_colorkey((0, 0, 0))
+        return img
+    except:
+        print("Error loading image: " + path)
+        return None
+    
 def load_images(path):
     images = []
-    for img_name in sorted(os.listdir(BASE_IMAGE_PATH + path)):
-        images.append(load_image(path + '/' + img_name))
+    for img_name in sorted(os.listdir(BASE_IMG_PATH + path)):
+        if img_name and img_name.endswith('.png'):
+            print("image name : " + img_name)
+            full_path = path + '/' + img_name
+            images.append(load_image(full_path))
     return images
-
 
 class Animation:
     

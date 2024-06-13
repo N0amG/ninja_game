@@ -8,15 +8,16 @@ import pygame
 
 class GameObject:
     def __init__(self, image_path, position):
+        self.anim = utils.Animation(utils.load_images(image_path))
         self.image = utils.load_image(image_path)
         self.position = list(position)
 
     def update(self, movement):
         self.position[1] += movement[1] - movement[0]
+        self.anim.update()
 
     def render(self, screen):
-        screen.blit(self.image, self.position)
-
+        screen.blit(self.anim.img(), self.position)
 
 class Game:
     def __init__(self):
