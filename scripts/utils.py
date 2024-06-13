@@ -12,7 +12,8 @@ def load_image(path):
     except:
         print("Error loading image: " + path)
         return None
-    
+
+
 def load_images(path):
     images = []
 
@@ -21,6 +22,7 @@ def load_images(path):
         if full_path.endswith('.png'):
             images.append(load_image(full_path))
     return images
+
 
 class Animation:
     

@@ -5,7 +5,7 @@ from scripts.entities import PhysicsEntity
 
 import pygame
 
-
+"""
 class GameObject:
     def __init__(self, image_path, position):
         self.anim = utils.Animation(utils.load_images(image_path))
@@ -18,6 +18,8 @@ class GameObject:
 
     def render(self, screen):
         screen.blit(self.anim.img(), self.position)
+"""
+
 
 class Game:
     def __init__(self):
@@ -47,7 +49,8 @@ class Game:
         self.player = PhysicsEntity(self, 'player', (50, 50), (8, 15))
 
         self.games_objects = [self.player]
-                
+
+
     def run(self):
         
         while True:
@@ -79,11 +82,13 @@ class Game:
             pygame.display.update()
             self.clock.tick(self.fps)
             self.dt = 1 / (self.clock.get_fps() +1)
-            
+
+
     def update(self):
         
         self.player.update((self.movement[1] - self.movement[0], 0))
         self.player.render(self.screen)
+
         
     def render(self):
         # Remplissez self.screen avec du noir
