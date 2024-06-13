@@ -1,11 +1,13 @@
 import sys
 
+import scripts.utils as utils
+
 import pygame
 
 
 class GameObject:
     def __init__(self, image_path, position):
-        self.image = pygame.image.load(image_path)
+        self.image = utils.load_image(image_path)
         self.position = list(position)
 
     def update(self, movement):
@@ -20,11 +22,11 @@ class Game:
         pygame.init()
 
         pygame.display.set_caption('ninja game')
-        self.screen = pygame.display.set_mode((1080, 720), pygame.RESIZABLE)
+        self.screen = pygame.display.set_mode((640, 480), pygame.RESIZABLE)
         
         self.aspect_ratio = self.screen.get_width() / self.screen.get_height()
         
-        self.display = pygame.Surface((540, 360))
+        self.display = pygame.Surface((320, 240))
         
         self.display_original_size = self.display.get_size()
         
@@ -36,7 +38,7 @@ class Game:
         
         self.movement = [False, False]
 
-        self.player = GameObject('data/images/entities/player/idle/00.png', [160, 260])
+        self.player = GameObject('entities/player.png', [60, 160])
 
         self.games_objects = [self.player]
                 
