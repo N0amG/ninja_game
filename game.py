@@ -39,6 +39,10 @@ class Game:
         
         self.movement = [False, False]
 
+        self.assets = {
+            "player/idle": utils.Animation('entities/player/idle/')
+        }
+        
         self.player = GameObject('entities/player/idle', [60, 160])
 
         self.games_objects = [self.player]

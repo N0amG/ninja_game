@@ -3,6 +3,7 @@ import os
 
 BASE_IMG_PATH = 'data/images/'
 
+
 def load_image(path):
     try:
         img = pygame.image.load(BASE_IMG_PATH + path).convert()
@@ -14,10 +15,11 @@ def load_image(path):
     
 def load_images(path):
     images = []
+
     for img_name in sorted(os.listdir(BASE_IMG_PATH + path)):
-        if img_name and img_name.endswith('.png'):
-            print("image name : " + img_name)
-            full_path = path + '/' + img_name
+        print("image name : " + img_name)
+        full_path = path + '/' + img_name
+        if full_path.endswith('.png'):
             images.append(load_image(full_path))
     return images
 
