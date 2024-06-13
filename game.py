@@ -1,6 +1,7 @@
 import sys
 
 import scripts.utils as utils
+from scripts.entities import PhysicsEntity
 
 import pygame
 
@@ -31,20 +32,26 @@ class Game:
         self.display_original_size = self.display.get_size()
         
         self.clock = pygame.time.Clock()
+
+        self.assets = {
+            "player": utils.load_image('entities/player.png')
+        }
         
         self.fps = 75
         self.dt = 1
 
-        
         self.movement = [False, False]
 
-        self.player = GameObject('entities/player.png', [60, 160])
+        self.player = PhysicsEntity(self, 'player', (50, 50), (8, 15))
 
         self.games_objects = [self.player]
                 
     def run(self):
         
         while True:
+
+            self.player.update((self.movement[1] - self.movement[0], 0))
+            self.player.render(self.screen)
             
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -57,14 +64,14 @@ class Game:
                     self.screen = pygame.display.set_mode((new_width, new_height), pygame.RESIZABLE)
                                         
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_UP:
+                    if event.key == pygame.K_LEFT:
                         self.movement[0] = True
-                    elif event.key == pygame.K_DOWN:
+                    elif event.key == pygame.K_RIGHT:
                         self.movement[1] = True
                 elif event.type == pygame.KEYUP:
-                    if event.key == pygame.K_UP:
+                    if event.key == pygame.K_LEFT:
                         self.movement[0] = False
-                    elif event.key == pygame.K_DOWN:
+                    elif event.key == pygame.K_RIGHT:
                         self.movement[1] = False
             
             self.update()

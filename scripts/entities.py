@@ -18,4 +18,3 @@ class PhysicsEntity:
     def render(self, surf):
         surf.blit(self.game.assets["player"], self.pos)
 
-        
