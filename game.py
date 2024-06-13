@@ -35,7 +35,8 @@ class Game:
         self.clock = pygame.time.Clock()
 
         self.assets = {
-            "player": utils.load_image('entities/player.png')
+            "player": utils.load_image('entities/player.png'),
+            "player/idle": utils.Animation(utils.load_images('entities/player/idle')),
         }
         
         self.fps = 75
@@ -50,9 +51,6 @@ class Game:
     def run(self):
         
         while True:
-
-            self.player.update((self.movement[1] - self.movement[0], 0))
-            self.player.render(self.screen)
             
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -84,9 +82,9 @@ class Game:
             
     def update(self):
         
-        for game_object in self.games_objects:
-            game_object.update(self.movement)
-    
+        self.player.update((self.movement[1] - self.movement[0], 0))
+        self.player.render(self.screen)
+        
     def render(self):
         # Remplissez self.screen avec du noir
         self.screen.fill((0, 0, 0))

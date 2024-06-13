@@ -17,7 +17,6 @@ def load_images(path):
     images = []
 
     for img_name in sorted(os.listdir(BASE_IMG_PATH + path)):
-        print("image name : " + img_name)
         full_path = path + '/' + img_name
         if full_path.endswith('.png'):
             images.append(load_image(full_path))
