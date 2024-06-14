@@ -5,21 +5,6 @@ from scripts.entities import PhysicsEntity
 
 import pygame
 
-"""
-class GameObject:
-    def __init__(self, image_path, position):
-        self.anim = utils.Animation(utils.load_images(image_path))
-        self.image = utils.load_image(image_path)
-        self.position = list(position)
-
-    def update(self, movement):
-        self.position[1] += movement[1] - movement[0]
-        self.anim.update()
-
-    def render(self, screen):
-        screen.blit(self.anim.img(), self.position)
-"""
-
 
 class Game:
     def __init__(self):
@@ -27,6 +12,8 @@ class Game:
 
         pygame.display.set_caption('ninja game')
         self.screen = pygame.display.set_mode((1080, 720), pygame.RESIZABLE)
+        
+        self.screen = pygame.display.set_mode((self.screen.get_size()[0]//2, self.screen.get_size()[1]//2), pygame.RESIZABLE)
         
         self.aspect_ratio = self.screen.get_width() / self.screen.get_height()
         
@@ -49,6 +36,10 @@ class Game:
         self.player = PhysicsEntity(self, 'player', (50, 50), (8, 15))
 
         self.games_objects = [self.player]
+        
+        pygame.joystick.init()
+        self.joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
+        print(self.joysticks)
 
 
     def run(self):
@@ -64,7 +55,8 @@ class Game:
                     new_width = max(self.display_original_size[0], event.w)
                     new_height = max(self.display_original_size[1], event.h)
                     self.screen = pygame.display.set_mode((new_width, new_height), pygame.RESIZABLE)
-                                        
+
+          
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_LEFT:
                         self.movement[0] = True
@@ -75,7 +67,24 @@ class Game:
                         self.movement[0] = False
                     elif event.key == pygame.K_RIGHT:
                         self.movement[1] = False
-            
+
+                elif event.type == pygame.JOYBUTTONDOWN:
+                    pass
+                elif event.type == pygame.JOYBUTTONUP:
+                    pass
+                
+                elif event.type == pygame.JOYAXISMOTION:
+                    if event.axis == 0:
+                        if event.value < -0.3:
+                            self.movement[0] = True
+                        elif event.value > 0.3:
+                            self.movement[1] = True
+                        elif -0.3 < event.value < 0.3:
+                            self.movement = [False, False]
+                                                
+                elif event.type == pygame.JOYHATMOTION:
+                    pass
+                
             self.update()
             self.render()
             
