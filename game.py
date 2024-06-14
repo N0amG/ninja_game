@@ -39,6 +39,10 @@ class Game:
         self.assets = {
             "player": utils.load_image('entities/player.png'),
             "player/idle": utils.Animation(utils.load_images('entities/player/idle')),
+            "decor": utils.Animation(utils.load_images('tiles/decor')),
+            "grass": utils.Animation(utils.load_images('tiles/grass')),
+            "large_decor": utils.Animation(utils.load_images('tiles/large_decor')),
+            "stone": utils.Animation(utils.load_images('tiles/stone'))
         }
         
         self.fps = 75
