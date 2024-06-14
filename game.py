@@ -1,6 +1,6 @@
 import sys
 
-import scripts.utils as utils
+from scripts.utils import load_image, load_images, Animation
 from scripts.entities import PhysicsEntity
 from scripts.tilemap import Tilemap
 
@@ -23,14 +23,18 @@ class Game:
         self.display_original_size = self.display.get_size()
         
         self.clock = pygame.time.Clock()
+                
+        # Initialisation des manettes
+        pygame.joystick.init()
+        self.joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
 
         self.assets = {
-            "player": utils.load_image('entities/player.png'),
-            "player/idle": utils.Animation(utils.load_images('entities/player/idle')),
-            "decor": utils.load_images('tiles/decor'),
-            "grass": utils.load_images('tiles/grass'),
-            "large_decor": utils.load_images('tiles/large_decor'),
-            "stone": utils.load_images('tiles/stone')
+            "player": load_image('entities/player.png'),
+            "player/idle": Animation(load_images('entities/player/idle'), 8),
+            "decor": load_images('tiles/decor'),
+            "grass": load_images('tiles/grass'),
+            "large_decor": load_images('tiles/large_decor'),
+            "stone": load_images('tiles/stone')
         }
         
         self.fps = 75
@@ -38,14 +42,11 @@ class Game:
 
         self.movement = [False, False]
 
-        self.player = PhysicsEntity(self, 'player', (50, 50), (8, 15))
+        self.player = PhysicsEntity(self, 'player', (165, 40), (14, 18))
 
         self.tilemap = Tilemap(self, tile_size=16)
 
         self.games_objects = [self.player]
-        
-        pygame.joystick.init()
-        self.joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
 
 
     def run(self):
@@ -68,6 +69,8 @@ class Game:
                         self.movement[0] = True
                     elif event.key == pygame.K_RIGHT:
                         self.movement[1] = True
+                    elif event.key == pygame.K_UP:
+                        self.player.jump()
                 elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_LEFT:
                         self.movement[0] = False
@@ -75,7 +78,8 @@ class Game:
                         self.movement[1] = False
 
                 elif event.type == pygame.JOYBUTTONDOWN:
-                    pass
+                    if event.button == 0:
+                        self.player.jump()
                 elif event.type == pygame.JOYBUTTONUP:
                     pass
                 
@@ -101,9 +105,7 @@ class Game:
 
     def update(self):
         
-        self.player.update((self.movement[1] - self.movement[0], 0))
-        self.player.render(self.screen)
-
+        self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
         
     def render(self):
         # Remplissez self.screen avec du noir
@@ -114,11 +116,10 @@ class Game:
         
         self.tilemap.render(self.display)
 
+        self.player.render(self.display)
+
         
-        for game_object in self.games_objects:
-            game_object.render(self.display)
-       
-    
+        
         # Calculez la nouvelle taille de la copie de self.display tout en conservant le rapport d'aspect
         screen_width, screen_height = self.screen.get_size()
         if screen_width / screen_height > self.aspect_ratio:
@@ -127,7 +128,7 @@ class Game:
         else:
             new_width = screen_width
             new_height = int(screen_width / self.aspect_ratio)
-    
+
         # Créez une copie redimensionnée de self.display
         scaled_display = pygame.transform.scale(self.display, (new_width, new_height))
     
