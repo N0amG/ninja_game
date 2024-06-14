@@ -43,7 +43,6 @@ class Game:
         
         pygame.joystick.init()
         self.joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
-        print(self.joysticks)
 
 
     def run(self):
