@@ -2,6 +2,7 @@ import sys
 
 import scripts.utils as utils
 from scripts.entities import PhysicsEntity
+from scripts.tilemap import Tilemap
 
 import pygame
 
@@ -26,10 +27,10 @@ class Game:
         self.assets = {
             "player": utils.load_image('entities/player.png'),
             "player/idle": utils.Animation(utils.load_images('entities/player/idle')),
-            "decor": utils.Animation(utils.load_images('tiles/decor')),
-            "grass": utils.Animation(utils.load_images('tiles/grass')),
-            "large_decor": utils.Animation(utils.load_images('tiles/large_decor')),
-            "stone": utils.Animation(utils.load_images('tiles/stone'))
+            "decor": utils.load_images('tiles/decor'),
+            "grass": utils.load_images('tiles/grass'),
+            "large_decor": utils.load_images('tiles/large_decor'),
+            "stone": utils.load_images('tiles/stone')
         }
         
         self.fps = 75
@@ -38,6 +39,8 @@ class Game:
         self.movement = [False, False]
 
         self.player = PhysicsEntity(self, 'player', (50, 50), (8, 15))
+
+        self.tilemap = Tilemap(self, tile_size=16)
 
         self.games_objects = [self.player]
         
@@ -48,6 +51,8 @@ class Game:
     def run(self):
         
         while True:
+
+            self.tilemap.render(self.display)
             
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
