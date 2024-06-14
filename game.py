@@ -18,7 +18,7 @@ class Game:
         
         self.aspect_ratio = self.screen.get_width() / self.screen.get_height()
         
-        self.display = pygame.Surface((self.screen.get_width()//3, self.screen.get_height()//3))
+        self.display = pygame.Surface((self.screen.get_width()//1.75, self.screen.get_height()//1.75))
         
         self.display_original_size = self.display.get_size()
         
@@ -51,8 +51,6 @@ class Game:
     def run(self):
         
         while True:
-
-            self.tilemap.render(self.display)
             
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -113,6 +111,10 @@ class Game:
     
         # Dessinez vos objets de jeu sur self.display
         self.display.fill((14, 219, 248))
+        
+        self.tilemap.render(self.display)
+
+        
         for game_object in self.games_objects:
             game_object.render(self.display)
        
