@@ -10,7 +10,8 @@ class PhysicsEntity:
         self.collisions = {'up': False, 'down': False, 'right': False, 'left': False}
         
         self.action = ''
-        self.anim_offset = (-3, -3)
+        self.anim_offset = (-3, -1)
+        
         self.flip = False
         self.set_action('idle')
         
@@ -46,10 +47,10 @@ class PhysicsEntity:
         for rect in tilemap.physics_rects_around(self.pos):
             if entity_rect.colliderect(rect):
                 if frame_movement[1] > 0:
-                    entity_rect.bottom = rect.top +1 
+                    entity_rect.bottom = rect.top 
                     self.collisions['down'] = True
                 if frame_movement[1] < 0:
-                    entity_rect.top = rect.bottom+1
+                    entity_rect.top = rect.bottom
                     self.collisions['up'] = True
                 self.pos[1] = entity_rect.y
                 
@@ -74,13 +75,13 @@ class PhysicsEntity:
     
     def render(self, surf, offset=(0 ,0)):
         surf.blit(pygame.transform.flip(self.animation.img(), self.flip, False), (self.pos[0] - offset[0] + self.anim_offset[0], self.pos[1] - offset[1] + self.anim_offset[1]))
-
+        #pygame.draw.rect(surf, (255, 0, 0), (self.pos[0] - offset[0], self.pos[1] - offset[1], self.size[0], self.size[1]), 1)
 
 
 class Player(PhysicsEntity):
     
     def __init__(self, game, pos):
-        super().__init__(game, 'player', pos, (14, 18))
+        super().__init__(game, 'player', pos, (8, 16))
         self.air_time = 0
         
     def update(self, tilemap, movement=(0, 0)):
