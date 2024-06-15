@@ -36,6 +36,7 @@ class Editor:
         self.joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
 
         self.assets = {
+            "spawner" : load_images('tiles/spawners/'),
             "decor": load_images('tiles/decor'),
             "grass": load_images('tiles/grass'),
             "large_decor": load_images('tiles/large_decor'),

@@ -76,16 +76,16 @@ class Game:
 
           
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_LEFT:
+                    if event.key == pygame.K_LEFT or event.key == pygame.K_q:
                         self.movement[0] = True
-                    elif event.key == pygame.K_RIGHT:
+                    elif event.key == pygame.K_RIGHT  or event.key == pygame.K_d:
                         self.movement[1] = True
-                    elif event.key == pygame.K_UP:
+                    elif event.key == pygame.K_UP or event.key == pygame.K_SPACE:
                         self.player.jump()
                 elif event.type == pygame.KEYUP:
-                    if event.key == pygame.K_LEFT:
+                    if event.key == pygame.K_LEFT or event.key == pygame.K_q:
                         self.movement[0] = False
-                    elif event.key == pygame.K_RIGHT:
+                    elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
                         self.movement[1] = False
 
                 elif event.type == pygame.JOYBUTTONDOWN:
