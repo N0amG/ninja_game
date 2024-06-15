@@ -1,7 +1,7 @@
 import sys
 
 from scripts.utils import load_image, load_images, Animation
-from scripts.entities import PhysicsEntity
+from scripts.entities import Player
 from scripts.tilemap import Tilemap
 from scripts.clouds import Clouds
 
@@ -37,6 +37,8 @@ class Game:
             "background" : load_image('background.png'),
             "player": load_image('entities/player.png'),
             "player/idle": Animation(load_images('entities/player/idle'), 8),
+            "player/run": Animation(load_images('entities/player/run')),
+            "player/jump": Animation(load_images('entities/player/jump')),
             "decor": load_images('tiles/decor'),
             "grass": load_images('tiles/grass'),
             "large_decor": load_images('tiles/large_decor'),
@@ -49,7 +51,7 @@ class Game:
         
         self.movement = [False, False]
 
-        self.player = PhysicsEntity(self, 'player', (165, 40), (14, 18))
+        self.player = Player(self, (50, 50))
 
         self.tilemap = Tilemap(self, tile_size=16)
 
