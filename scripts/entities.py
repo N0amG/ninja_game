@@ -71,5 +71,5 @@ class PhysicsEntity:
     
     def jump(self):
         self.velocity[1] = -3
-    def render(self, surf, offset=(-2, -2)):
+    def render(self, surf, offset=(0 ,0)):
         surf.blit(pygame.transform.flip(self.animation.img(), self.flip, False), (self.pos[0] - offset[0] + self.anim_offset[0], self.pos[1] - offset[1] + self.anim_offset[1]))

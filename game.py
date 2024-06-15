@@ -3,6 +3,7 @@ import sys
 from scripts.utils import load_image, load_images, Animation
 from scripts.entities import PhysicsEntity
 from scripts.tilemap import Tilemap
+from scripts.clouds import Clouds
 
 import pygame
 
@@ -23,23 +24,29 @@ class Game:
         self.display_original_size = self.display.get_size()
         
         self.clock = pygame.time.Clock()
-                
+        
+        self.fps = 75
+        self.dt = 1
+        
+        
         # Initialisation des manettes
         pygame.joystick.init()
         self.joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
 
         self.assets = {
+            "background" : load_image('background.png'),
             "player": load_image('entities/player.png'),
             "player/idle": Animation(load_images('entities/player/idle'), 8),
             "decor": load_images('tiles/decor'),
             "grass": load_images('tiles/grass'),
             "large_decor": load_images('tiles/large_decor'),
-            "stone": load_images('tiles/stone')
+            "stone": load_images('tiles/stone'),
+            "clouds": load_images('clouds'),
         }
         
-        self.fps = 75
-        self.dt = 1
 
+        self.clouds = Clouds(self.assets['clouds'])
+        
         self.movement = [False, False]
 
         self.player = PhysicsEntity(self, 'player', (165, 40), (14, 18))
@@ -48,11 +55,12 @@ class Game:
 
         self.games_objects = [self.player]
 
+        self.scroll = [0, 0]
 
     def run(self):
         
         while True:
-            
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -107,16 +115,24 @@ class Game:
         
         self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
         
+        self.clouds.update()
+        
     def render(self):
         # Remplissez self.screen avec du noir
         self.screen.fill((0, 0, 0))
     
         # Dessinez vos objets de jeu sur self.display
-        self.display.fill((14, 219, 248))
+        self.display.blit(self.assets['background'], (0, 0))
         
-        self.tilemap.render(self.display)
-
-        self.player.render(self.display)
+        self.scroll[0] += (self.player.rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / 20
+        self.scroll[1] += (self.player.rect().centery - self.display.get_height() / 2 - self.scroll[1]) / 20
+        render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
+        
+        self.clouds.render(self.display, offset=render_scroll)
+        
+        self.tilemap.render(self.display, offset=render_scroll)
+        
+        self.player.render(self.display, offset=render_scroll)
 
         
         
@@ -131,7 +147,8 @@ class Game:
 
         # Créez une copie redimensionnée de self.display
         scaled_display = pygame.transform.scale(self.display, (new_width, new_height))
-    
+        #scaled_display = pygame.transform.scale(self.display, self.screen.get_size())
+        
         # Dessinez la copie redimensionnée de self.display au centre de self.screen
         display_rect = scaled_display.get_rect(center=self.screen.get_rect().center)
         self.screen.blit(scaled_display, display_rect)
