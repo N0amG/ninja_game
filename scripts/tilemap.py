@@ -74,7 +74,6 @@ class Tilemap:
         self.offgrid_tiles = map_data['offgrid_tiles']
     
     def autotile(self):
-        
         for loc in self.tilemap:
             tile = self.tilemap[loc]
             neighbors = set()

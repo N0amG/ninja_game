@@ -39,6 +39,8 @@ class Game:
             "player/idle": Animation(load_images('entities/player/idle'), 8),
             "player/run": Animation(load_images('entities/player/run')),
             "player/jump": Animation(load_images('entities/player/jump')),
+            "player/slide" : Animation(load_images('entities/player/slide/')),
+            "player/wall_slide" : Animation(load_images('entities/player/wall_slide/')),
             "decor": load_images('tiles/decor'),
             "grass": load_images('tiles/grass'),
             "large_decor": load_images('tiles/large_decor'),
@@ -157,7 +159,5 @@ class Game:
         self.screen.blit(scaled_display, display_rect)
     
         pygame.display.flip()
-        
-        
 
 Game().run()
