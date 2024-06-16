@@ -1,4 +1,6 @@
 import sys
+import os
+
 import random
 
 from scripts.utils import load_image, load_images, Animation
@@ -78,6 +80,7 @@ class Game:
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
+                    #clean()
                     pygame.quit()
                     sys.exit()
 
@@ -183,4 +186,15 @@ class Game:
     
         pygame.display.flip()
 
+
+def clean():
+    for folder in os.listdir('scripts'):
+        if folder == "__pycache__":
+            for file in os.listdir('scripts/__pycache__/'):
+                os.remove('scripts/__pycache__/' + file)
+            os.rmdir('scripts/__pycache__/')
+clean()
+    
 Game().run()
+
+
