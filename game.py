@@ -43,6 +43,7 @@ class Game:
             "player/jump": Animation(load_images('entities/player/jump')),
             "player/slide" : Animation(load_images('entities/player/slide/')),
             "player/wall_slide" : Animation(load_images('entities/player/wall_slide/')),
+            "particle/particle": Animation(load_images('particles/particle'), 6, loop=False),
             "decor": load_images('tiles/decor'),
             "grass": load_images('tiles/grass'),
             "large_decor": load_images('tiles/large_decor'),
@@ -81,7 +82,9 @@ class Game:
                     new_height = max(self.display_original_size[1], event.h)
                     self.screen = pygame.display.set_mode((new_width, new_height), pygame.RESIZABLE)
 
-          
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:
+                        self.player.dash()
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_LEFT or event.key == pygame.K_q:
                         self.movement[0] = True
@@ -173,7 +176,7 @@ def clean():
                 os.remove('scripts/__pycache__/' + file)
             os.rmdir('scripts/__pycache__/')
 clean()
-    
+
 Game().run()
 
 
