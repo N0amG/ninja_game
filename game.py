@@ -58,6 +58,8 @@ class Game:
         
         self.games_objects = [self.player]
 
+        print(self.tilemap.extract([('large_decor', 2)], keep=True))
+
         self.scroll = [0, 0]
 
     def run(self):
