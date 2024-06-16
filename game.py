@@ -1,9 +1,11 @@
 import sys
+import random
 
 from scripts.utils import load_image, load_images, Animation
 from scripts.entities import Player
 from scripts.tilemap import Tilemap
 from scripts.clouds import Clouds
+from scripts.particle import Particle
 
 import pygame
 
@@ -41,6 +43,7 @@ class Game:
             "player/jump": Animation(load_images('entities/player/jump')),
             "player/slide" : Animation(load_images('entities/player/slide/')),
             "player/wall_slide" : Animation(load_images('entities/player/wall_slide/')),
+            "particle/leaf" : Animation(load_images('particles/leaf'), img_dur=20, loop=False),
             "decor": load_images('tiles/decor'),
             "grass": load_images('tiles/grass'),
             "large_decor": load_images('tiles/large_decor'),
@@ -60,7 +63,12 @@ class Game:
         
         self.games_objects = [self.player]
 
-        print(self.tilemap.extract([('large_decor', 2)], keep=True))
+        self.leaf_spawners = []
+        for tree in self.tilemap.extract([('large_decor', 2)], keep=True):
+            self.leaf_spawners.append(pygame.Rect(4 + tree['pos'][0], 4 + tree['pos'][1], 23, 13))
+
+
+        self.particles = []
 
         self.scroll = [0, 0]
 
@@ -123,6 +131,16 @@ class Game:
         self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
         
         self.clouds.update()
+
+        for rect in self.leaf_spawners:
+            if random.random() * 49999 < rect.width * rect.height:
+                pos = (rect.x + random.random() * rect.width, rect.y + random.random() * rect.height)
+                self.particles.append(Particle(self, 'leaf', pos, velocity=[-0.1, 0.3], frame=random.randint(0, 20)))
+
+        for particle in self.particles.copy():
+            kill = particle.update()
+            if kill:
+                self.particles.remove(particle)
         
     def render(self):
         # Remplissez self.screen avec du noir
@@ -134,6 +152,7 @@ class Game:
         self.scroll[0] += (self.player.rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / 20
         self.scroll[1] += (self.player.rect().centery - self.display.get_height() / 2 - self.scroll[1]) / 20
         render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
+
         
         self.clouds.render(self.display, offset=render_scroll)
         
@@ -141,7 +160,9 @@ class Game:
         
         self.player.render(self.display, offset=render_scroll)
 
-        
+        for particle in self.particles:
+            particle.render(self.display, offset=render_scroll)
+
         
         # Calculez la nouvelle taille de la copie de self.display tout en conservant le rapport d'aspect
         screen_width, screen_height = self.screen.get_size()
