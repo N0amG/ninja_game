@@ -2,6 +2,7 @@ import pygame
 from scripts.particle import Particle
 import math
 import random
+from scripts.sparks import Spark
 
 class PhysicsEntity:
     def __init__(self, game, e_type, pos, size):
@@ -80,6 +81,65 @@ class PhysicsEntity:
     def render(self, surf, offset=(0 ,0)):
         surf.blit(pygame.transform.flip(self.animation.img(), self.flip, False), (self.pos[0] - offset[0] + self.anim_offset[0], self.pos[1] - offset[1] + self.anim_offset[1]))
 
+class Enemy(PhysicsEntity):
+        
+        def __init__(self, game, pos):
+            super().__init__(game, 'enemy', pos, (8, 15))
+            self.walking = 0
+
+        def update(self, tilemap, movement=(0, 0)):
+
+            if self.walking:
+                if tilemap.solid_check((self.rect().centerx + (-7 if self.flip else 7), self.pos[1] + 23)) and not (self.collisions['right'] or self.collisions['left']):
+                    movement = (movement[0] - 0.5 if self.flip else 0.5, movement[1])
+                else: 
+                    self.flip = not self.flip
+
+                self.walking = max(0, self.walking - 1)
+
+                if not self.walking:
+                    dist = (self.game.player.pos[0] - self.pos[0], self.game.player.pos[1] - self.pos[1])
+                    if (abs(dist[1]) < 16):
+                        if self.flip and dist[0] < 0:
+                            self.game.projectiles.append([ [self.rect().centerx -7, self.rect().centery], -1.5, 0])
+                            for i in range(4):
+                                self.game.sparks.append(Spark(self.game.projectiles[-1][0], random.random() - 0.5 + math.pi, 2 + random.random()))
+                        if not self.flip and dist[0] > 0:
+                            self.game.projectiles.append([ [self.rect().centerx +7, self.rect().centery], 1.5, 0])
+                            for i in range(4):
+                                self.game.sparks.append(Spark(self.game.projectiles[-1][0], random.random() - 0.5, 2 + random.random()))
+                            
+            elif random.random() < 0.01:
+                self.walking = random.randint(30, 120)
+                self.flip = not self.flip
+            
+            super().update(tilemap, movement=movement)
+            
+            if movement[0] != 0:
+                self.set_action('run')
+            else:
+                self.set_action('idle')
+            
+            if abs(self.game.player.dashing) >= 50:
+                if self.rect().colliderect(self.game.player.rect()):
+                    
+                    self.game.screenshake = max(16, self.game.screenshake)
+                    
+                    for i in range(30):
+                        angle = random.random() * math.pi * 2
+                        speed = random.random() * 5
+                        self.game.sparks.append(Spark(self.game.player.rect().center, angle, random.random() + 2))
+                        self.game.particles.append(Particle(self.game, 'particle', self.game.player.rect().center, [math.cos(angle + math.pi) * speed * 0.5, math.sin(angle + math.pi) * speed * 0.5], frame=random.randint(0, 7)))
+                    self.game.sparks.append(Spark(self.rect().center, 0, 5 + random.random()))
+                    self.game.sparks.append(Spark(self.rect().center, math.pi, 5 + random.random()))
+                    
+                    return True
+        
+        def render(self, surf, offset=(0 ,0)):
+            super().render(surf, offset=offset)
+
+            x_margin = -4 - self.game.assets["gun"].get_width() if self.flip else 4
+            surf.blit(pygame.transform.flip(self.game.assets['gun'], self.flip, False), (self.rect().centerx + x_margin- offset[0], self.rect().centery - offset[1]))
 
 class Player(PhysicsEntity):
     
@@ -94,6 +154,13 @@ class Player(PhysicsEntity):
         if self.velocity[0] != 0: movement = (0, movement[1])
         super().update(tilemap, movement=movement)
         self.air_time += 1
+        
+        if self.air_time >= 250:
+            if not self.game.dead:
+                self.game.screenshake = max(64, self.game.screenshake)
+            self.game.dead += 1
+            
+                    
         if self.collisions['down']:
             self.air_time = 0
             self.jumps = self.available_jump
@@ -103,6 +170,7 @@ class Player(PhysicsEntity):
             self.set_action('wall_slide')
             self.wall_slide = True
             self.velocity[1] = min(0.5, self.velocity[1])
+            self.air_time = 5
         
         if not self.wall_slide:
             if self.air_time > 4:    
