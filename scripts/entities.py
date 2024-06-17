@@ -1,4 +1,7 @@
 import pygame
+from scripts.particle import Particle
+import math
+import random
 
 class PhysicsEntity:
     def __init__(self, game, e_type, pos, size):
@@ -111,6 +114,14 @@ class Player(PhysicsEntity):
             else:
                 self.set_action('idle')
 
+        if abs(self.dashing) in {50, 60}:
+            for i in range(20):
+                angle = random.random() * math.pi * 2
+                speed = random.random() * 0.5 + 0.5
+                pvelocity = [math.cos(angle) * speed, math.sin(angle) * speed]
+                
+                self.game.particles.append(Particle(self.game, 'particle', self.rect().center, pvelocity, frame=random.randint(0, 7)))
+
         if self.dashing > 0:
             self.dashing = max(self.dashing - 1, 0)
 
@@ -122,6 +133,11 @@ class Player(PhysicsEntity):
 
             if abs(self.dashing) == 51:
                 self.velocity[0] *= 0.1
+            pvelocity = [abs(self.dashing) / self.dashing * random.random() *3, 0]
+                
+            self.game.particles.append(Particle(self.game, 'particle', self.rect().center, pvelocity, frame=random.randint(0, 7)))
+            
+        
         
         if self.velocity[0] > 0:
             self.velocity[0] = max(self.velocity[0] - 0.1, 0)
@@ -137,8 +153,9 @@ class Player(PhysicsEntity):
                 return True
         else:
             self.velocity[1] = -2.5
-            self.velocity[0] = -3.5 if self.collisions['right'] else 3.5
+            self.velocity[0] = -3.5 if self.last_movement[0] > 0 else 3.5
             self.flip = not self.flip
+            self.jumps = min(self.jumps + 1, self.available_jump-1)
             return True
 
     def dash(self):

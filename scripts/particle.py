@@ -19,7 +19,6 @@ class Particle:
         self.pos[1] += self.velocity[1]
 
         self.animation.update()
-
         return kill
 
     def render(self, surf, offset=(0, 0)):

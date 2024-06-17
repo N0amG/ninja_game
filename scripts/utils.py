@@ -44,6 +44,6 @@ class Animation:
             self.frame = (self.frame + 1) % (len(self.images) * self.img_dur)
         else:
             self.frame = min(self.frame + 1, len(self.images) * self.img_dur)
-            if self.frame >= len(self.images) * self.img_dur:
+            if self.frame >= len(self.images) * self.img_dur -1:
                 self.is_done = True
         
