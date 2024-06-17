@@ -139,9 +139,11 @@ class Game:
         
         # Mode dev
         # ----------------
-        if self.player.pos[1] > 500:
-            self.player.pos[1] = -300
+        if self.player.pos[1] > 700:
+            self.player.pos[1] = -500
+            self.player.pos[0] = 250
         # ----------------
+        
         self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
         
         self.clouds.update()
