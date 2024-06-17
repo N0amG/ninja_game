@@ -2,6 +2,7 @@ import sys
 import os
 
 import random
+import math
 
 from scripts.utils import load_image, load_images, Animation
 from scripts.entities import Player
@@ -59,7 +60,7 @@ class Game:
         
         self.movement = [False, False]
 
-        self.player = Player(self, (50, 50))
+        self.player = Player(self, (250, 50))
 
         self.tilemap = Tilemap(self, tile_size=16)
         self.tilemap.load('level.json')
@@ -109,6 +110,8 @@ class Game:
                 elif event.type == pygame.JOYBUTTONDOWN:
                     if event.button == 0:
                         self.player.jump()
+                    elif event.button == 2:
+                        self.player.dash()
                 elif event.type == pygame.JOYBUTTONUP:
                     pass
                 
@@ -126,7 +129,7 @@ class Game:
                 
             self.update()
             self.render()
-            
+
             pygame.display.update()
             self.clock.tick(self.fps)
             self.dt = 1 / (self.clock.get_fps() +1)
@@ -134,6 +137,11 @@ class Game:
 
     def update(self):
         
+        # Mode dev
+        # ----------------
+        if self.player.pos[1] > 500:
+            self.player.pos[1] = -300
+        # ----------------
         self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
         
         self.clouds.update()
@@ -145,6 +153,8 @@ class Game:
 
         for particle in self.particles.copy():
             kill = particle.update()
+            if particle.type == 'leaf':
+                particle.pos[0] += math.sin(particle.animation.frame * 0.035) *0.3
             if kill:
                 self.particles.remove(particle)
         
