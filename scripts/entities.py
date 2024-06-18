@@ -102,10 +102,12 @@ class Enemy(PhysicsEntity):
                     if (abs(dist[1]) < 16):
                         if self.flip and dist[0] < 0:
                             self.game.projectiles.append([ [self.rect().centerx -7, self.rect().centery], -1.5, 0])
+                            self.game.sfx["shoot"].play()
                             for i in range(4):
                                 self.game.sparks.append(Spark(self.game.projectiles[-1][0], random.random() - 0.5 + math.pi, 2 + random.random()))
                         if not self.flip and dist[0] > 0:
                             self.game.projectiles.append([ [self.rect().centerx +7, self.rect().centery], 1.5, 0])
+                            self.game.sfx["shoot"].play()
                             for i in range(4):
                                 self.game.sparks.append(Spark(self.game.projectiles[-1][0], random.random() - 0.5, 2 + random.random()))
                             
@@ -124,6 +126,7 @@ class Enemy(PhysicsEntity):
                 if self.rect().colliderect(self.game.player.rect()):
                     
                     self.game.screenshake = max(16, self.game.screenshake)
+                    self.game.sfx["hit"].play()
                     
                     for i in range(30):
                         angle = random.random() * math.pi * 2
@@ -157,6 +160,7 @@ class Player(PhysicsEntity):
         
         if self.air_time >= 250:
             if not self.game.dead:
+                self.game.sfx['hit'].play()
                 self.game.screenshake = max(64, self.game.screenshake)
             self.game.dead += 1
             
@@ -228,6 +232,7 @@ class Player(PhysicsEntity):
 
     def dash(self):
         if not self.dashing:
+            self.game.sfx["dash"].play()
             self.dashing = -60 if self.flip else 60
 
     def render(self, surf, offset=(0 ,0)):

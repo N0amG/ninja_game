@@ -25,7 +25,9 @@ class Game:
         
         self.aspect_ratio = self.screen.get_width() / self.screen.get_height()
         
-        self.display = pygame.Surface((self.screen.get_width()//1.75, self.screen.get_height()//1.75))
+        self.display = pygame.Surface((self.screen.get_width()//1.75, self.screen.get_height()//1.75), pygame.SRCALPHA)
+        
+        self.display_2 = pygame.Surface(self.display.get_size())
         
         self.display_original_size = self.display.get_size()
         
@@ -60,7 +62,20 @@ class Game:
             "projectile" : load_image('projectile.png'),
         }
         
-
+        self.sfx = {
+            "jump": pygame.mixer.Sound('data/sfx/jump.wav'),
+            "dash": pygame.mixer.Sound('data/sfx/dash.wav'),
+            "hit": pygame.mixer.Sound('data/sfx/hit.wav'),
+            "shoot" : pygame.mixer.Sound('data/sfx/shoot.wav'),
+            "ambience" : pygame.mixer.Sound('data/sfx/ambience.wav')
+        }
+        
+        self.sfx['ambience'].set_volume(0.2)
+        self.sfx['dash'].set_volume(0.3)
+        self.sfx['hit'].set_volume(0.8)
+        self.sfx['shoot'].set_volume(0.4)
+        self.sfx['jump'].set_volume(0.7)
+        
         self.clouds = Clouds(self.assets['clouds'])
         
         self.movement = [False, False]
@@ -70,7 +85,6 @@ class Game:
         self.tilemap = Tilemap(self, tile_size=16)
         
         self.level = 0
-        
         self.load_level(self.level)
         
         
@@ -104,8 +118,13 @@ class Game:
         self.transition = -30
     def run(self):
         
+        pygame.mixer.music.load('data/music.wav')
+        pygame.mixer.music.set_volume(0.5)
+        pygame.mixer.music.play(-1)
+        
+        self.sfx['ambience'].play(-1)
+        
         while True:
-
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     #clean()
@@ -126,7 +145,8 @@ class Game:
                     elif event.key == pygame.K_RIGHT  or event.key == pygame.K_d:
                         self.movement[1] = True
                     elif event.key == pygame.K_UP or event.key == pygame.K_SPACE:
-                        self.player.jump()
+                        if self.player.jump():
+                            self.sfx['jump'].play()
                 elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_LEFT or event.key == pygame.K_q:
                         self.movement[0] = False
@@ -135,7 +155,8 @@ class Game:
 
                 elif event.type == pygame.JOYBUTTONDOWN:
                     if event.button == 0:
-                        self.player.jump()
+                        if self.player.jump():
+                            self.sfx['jump'].play()
                     elif event.button == 2:
                         self.player.dash()
                 elif event.type == pygame.JOYBUTTONUP:
@@ -167,7 +188,6 @@ class Game:
         
         if self.dead:
             self.dead += 1
-            
             if self.dead > 150:
                 self.transition = min(30, self.transition+1)
             
@@ -199,6 +219,7 @@ class Game:
                         self.particles.append(Particle(self, 'particle', self.player.rect().center, [math.cos(angle + math.pi) * speed * 0.5, math.sin(angle + math.pi) * speed * 0.5], frame=random.randint(0, 7)))
                     self.dead += 1
                     self.screenshake = max(64, self.screenshake)
+                    self.sfx['hit'].play()
                     
         self.clouds.update()
 
@@ -237,16 +258,18 @@ class Game:
     def render(self):
         # Remplissez self.screen avec du noir
         self.screen.fill((0, 0, 0))
-    
+        
+        self.display.fill((0, 0, 0, 0))
+        
         # Dessinez vos objets de jeu sur self.display
-        self.display.blit(self.assets['background'], (0, 0))
+        self.display_2.blit(self.assets['background'], (0, 0))
         
         self.scroll[0] += (self.player.rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / 20
         self.scroll[1] += (self.player.rect().centery - self.display.get_height() / 2 - self.scroll[1]) / 20
         render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
 
         
-        self.clouds.render(self.display, offset=render_scroll)
+        self.clouds.render(self.display_2, offset=render_scroll)
         
         self.tilemap.render(self.display, offset=render_scroll)
         
@@ -264,6 +287,12 @@ class Game:
         for sparks in self.sparks:
             sparks.render(self.display, offset=render_scroll)
         
+        display_mask = pygame.mask.from_surface(self.display)
+        display_sillhouette = display_mask.to_surface(setcolor=(0, 0, 0, 180), unsetcolor=(0, 0, 0, 0))
+        for offset in [(0,-1), (0, 1), (-1, 0), (1,0)]:
+            self.display_2.blit(display_sillhouette, offset)
+        
+        
         for particle in self.particles:
             particle.render(self.display, offset=render_scroll)
 
@@ -274,6 +303,8 @@ class Game:
             transition_surf.set_colorkey((255, 255, 255))
             self.display.blit(transition_surf, (0, 0))
         
+
+
         # Calculez la nouvelle taille de la copie de self.display tout en conservant le rapport d'aspect
         screen_width, screen_height = self.screen.get_size()
         if screen_width / screen_height > self.aspect_ratio:
@@ -283,16 +314,20 @@ class Game:
             new_width = screen_width
             new_height = int(screen_width / self.aspect_ratio)
 
-        # Créez une copie redimensionnée de self.display
-        scaled_display = pygame.transform.scale(self.display, (new_width, new_height))
-        #scaled_display = pygame.transform.scale(self.display, self.screen.get_size())
         
+
+
+        
+        # Créez une copie redimensionnée de self.display
+        scaled_display_2 = pygame.transform.scale(self.display_2, (new_width, new_height))
+        scaled_display = pygame.transform.scale(self.display, (new_width, new_height))
         
        
         # Dessinez la copie redimensionnée de self.display au centre de self.screen
         screenshake_offset = (random.random() * self.screenshake - self.screenshake / 2, random.random() * self.screenshake - self.screenshake / 2)
         display_rect = scaled_display.get_rect(center=tuple(a + b for a, b in zip(self.screen.get_rect().center, screenshake_offset)))
         
+        self.screen.blit(scaled_display_2, display_rect)
         self.screen.blit(scaled_display, display_rect)
     
         pygame.display.flip()
