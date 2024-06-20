@@ -4,15 +4,20 @@ import os
 import random
 import math
 
-from scripts.utils import load_image, load_images, Animation
+from scripts.utils import load_image, load_images, Animation, load_image_switched_colorkey, load_images_switched_colorkey
 from scripts.entities import Player, Enemy
 from scripts.tilemap import Tilemap
 from scripts.clouds import Clouds
 from scripts.particle import Particle
 from scripts.sparks import Spark
 
+SCREEN_SIZE = 1
+RENDER_SCALE = 3.5 # 1.75 pour screen size de 2
+
 import pygame
 
+def rgb(r, g, b):
+    return (r, g, b)
 
 class Game:
     def __init__(self):
@@ -21,13 +26,11 @@ class Game:
         pygame.display.set_caption('ninja game')
         self.screen = pygame.display.set_mode((1080, 720), pygame.RESIZABLE)
         
-        self.screen = pygame.display.set_mode((self.screen.get_size()[0]//2, self.screen.get_size()[1]//2), pygame.RESIZABLE)
+        self.screen = pygame.display.set_mode((self.screen.get_size()[0]//SCREEN_SIZE, self.screen.get_size()[1]//SCREEN_SIZE), pygame.RESIZABLE)
+                
+        self.display = pygame.Surface((self.screen.get_width()//RENDER_SCALE, self.screen.get_height()//RENDER_SCALE), pygame.SRCALPHA)
         
-        self.aspect_ratio = self.screen.get_width() / self.screen.get_height()
-        
-        self.display = pygame.Surface((self.screen.get_width()//1.75, self.screen.get_height()//1.75), pygame.SRCALPHA)
-        
-        self.display_2 = pygame.Surface(self.display.get_size())
+        self.display_2 = pygame.Surface(self.display.get_size(), pygame.SRCALPHA)
         
         self.display_original_size = self.display.get_size()
         
@@ -62,6 +65,59 @@ class Game:
             "projectile" : load_image('projectile.png'),
         }
         
+        self.autumn_color_list = [
+            
+                    (rgb(70, 33, 31),   rgb(70, 33, 31)), #1
+                    (rgb(98, 53, 48),   rgb(98, 53, 48)), #2
+                    (rgb(148, 85, 66),  rgb(148, 85, 66)), #3
+                    (rgb(15, 39, 56),   rgb(191, 64, 12)), #4
+                    (rgb(26, 69, 59),   rgb(230, 74, 25)), #5
+                    (rgb(46, 106, 66),  rgb(255, 112, 67)), #6
+                    (rgb(80, 155, 75),  rgb(255, 202, 40)), #7
+                    (rgb(123, 207, 92), rgb(255, 167, 38)), #8
+                    
+                ]
+        
+        self.winter_color_list = [
+            
+                    (rgb(70, 33, 31),   rgb(70, 33, 31)), #1
+                    (rgb(98, 53, 48),   rgb(98, 53, 48)), #2
+                    (rgb(148, 85, 66),  rgb(148, 85, 66)), #3
+                    (rgb(15, 39, 56),   rgb(144, 164, 174)), #4
+                    (rgb(26, 69, 59),   rgb(143, 214, 223)), #5
+                    (rgb(46, 106, 66),  rgb(191, 230, 235)), #6
+                    (rgb(80, 155, 75),  rgb(238, 238, 238)), #7
+                    (rgb(123, 207, 92), rgb(255, 255, 255)), #8
+                    
+                ]
+        
+        self.death_color_list = [
+            
+                    (rgb(70, 33, 31),   rgb(38, 50, 56)), #1
+                    (rgb(98, 53, 48),   rgb(55, 71, 79)), #2
+                    (rgb(148, 85, 66),  rgb(81, 101, 110)), #3
+                    (rgb(15, 39, 56),   rgb(26, 8, 8)), #4
+                    (rgb(26, 69, 59),   rgb(55, 0, 0)), #5
+                    (rgb(46, 106, 66),  rgb(101, 2, 2)), #6
+                    (rgb(80, 155, 75),  rgb(154, 14, 14)), #7
+                    (rgb(123, 207, 92), rgb(229, 11, 11)), #8
+                    
+                    # Background
+                    (rgb(19, 178, 242), rgb(49, 0, 0)),
+                    (rgb(14, 219, 248), rgb(104, 5, 5)),
+                    (rgb(65, 243, 252), rgb(214, 0, 0)),
+                    
+                    # Clouds
+                    (rgb(163, 172, 190), rgb(27, 28, 29)),
+                    (rgb(219, 224, 231), rgb(47, 48, 49)),
+                    
+                    # Rocks
+                    (rgb(57, 58, 86), rgb(20, 0, 0)),
+                    (rgb(78, 83, 113), rgb(46, 4, 4)),
+                    (rgb(103, 112, 139), rgb(61, 18, 18)),
+                    (rgb(164, 172, 190), rgb(75, 15, 15)),
+                ]
+
         self.sfx = {
             "jump": pygame.mixer.Sound('data/sfx/jump.wav'),
             "dash": pygame.mixer.Sound('data/sfx/dash.wav'),
@@ -84,13 +140,45 @@ class Game:
 
         self.tilemap = Tilemap(self, tile_size=16)
         
+        self.score = 0
+        
         self.level = 0
+        self.world = 0
+        
         self.load_level(self.level)
         
+    
+    def score_update(self, score = 0):
+        self.score = max(0, self.score + score)
+        font = pygame.font.Font(None, 35)
+        score_render = font.render(str(self.score), True, (255, 255, 255))
+        return self.score, score_render
+    
+    def switch_assets_color(self, color_list):
         
+        self.assets["grass"] = load_images_switched_colorkey('tiles/grass', color_list)
         
-
+        self.assets["large_decor"] = load_images_switched_colorkey('tiles/large_decor', color_list)
+        
+        self.assets["decor"] = load_images_switched_colorkey('tiles/decor', color_list)
+        
+        self.assets["particle/leaf"] = Animation(load_images_switched_colorkey('particles/leaf', color_list), img_dur=20, loop=False)
+        
+        if color_list == self.death_color_list:
+            self.assets['background'] = load_image_switched_colorkey('background.png', color_list)
+            self.assets['clouds'] = load_images_switched_colorkey('clouds', color_list)
+            self.clouds = Clouds(self.assets['clouds'])
+        
     def load_level(self, map_id):
+        self.score_update(50) if self.level != 0 else None
+        if map_id % 3 == 0:
+            self.world += 1 if map_id != 0 else 1
+            self.score_update(100) if self.world != 0 else None
+            
+            if self.world == 1:
+                
+                self.switch_assets_color(self.death_color_list)
+
         self.tilemap.load('data/maps/' + str(map_id) + '.json')
         
         self.leaf_spawners = []
@@ -218,6 +306,7 @@ class Game:
                         self.sparks.append(Spark(self.player.rect().center, angle, random.random() + 2))
                         self.particles.append(Particle(self, 'particle', self.player.rect().center, [math.cos(angle + math.pi) * speed * 0.5, math.sin(angle + math.pi) * speed * 0.5], frame=random.randint(0, 7)))
                     self.dead += 1
+                    self.score_update(-25)
                     self.screenshake = max(64, self.screenshake)
                     self.sfx['hit'].play()
                     
@@ -227,6 +316,7 @@ class Game:
             kill = enemy.update(self.tilemap, (0, 0))
             if kill:
                 self.enemies.remove(enemy)
+                self.score_update(10)
         
         for rect in self.leaf_spawners:
             if random.random() * 49999 < rect.width * rect.height:
@@ -258,11 +348,14 @@ class Game:
     def render(self):
         # Remplissez self.screen avec du noir
         self.screen.fill((0, 0, 0))
+        self.screen.blit(pygame.transform.scale(self.assets['background'], self.screen.get_size()), (0, 0))
         
         self.display.fill((0, 0, 0, 0))
+        self.display_2.fill((0, 0, 0, 0))
+        self.display = pygame.transform.scale(self.display, (self.screen.get_width()//RENDER_SCALE, self.screen.get_height()//RENDER_SCALE))
+        self.display_2 = pygame.transform.scale(self.display_2, self.display.get_size())
         
         # Dessinez vos objets de jeu sur self.display
-        self.display_2.blit(self.assets['background'], (0, 0))
         
         self.scroll[0] += (self.player.rect().centerx - self.display.get_width() / 2 - self.scroll[0]) / 20
         self.scroll[1] += (self.player.rect().centery - self.display.get_height() / 2 - self.scroll[1]) / 20
@@ -287,6 +380,9 @@ class Game:
         for sparks in self.sparks:
             sparks.render(self.display, offset=render_scroll)
         
+        score, score_render = self.score_update()
+        self.display.blit(score_render, (2, 2))
+        
         display_mask = pygame.mask.from_surface(self.display)
         display_sillhouette = display_mask.to_surface(setcolor=(0, 0, 0, 180), unsetcolor=(0, 0, 0, 0))
         for offset in [(0,-1), (0, 1), (-1, 0), (1,0)]:
@@ -296,39 +392,27 @@ class Game:
         for particle in self.particles:
             particle.render(self.display, offset=render_scroll)
 
+        
+        
+        
         # transitions
         if self.transition:
             transition_surf = pygame.Surface(self.display.get_size())
             pygame.draw.circle(transition_surf, (255, 255, 255), (self.display.get_width()//2, self.display.get_height()//2), (30 - abs(self.transition))*8)
             transition_surf.set_colorkey((255, 255, 255))
             self.display.blit(transition_surf, (0, 0))
+
+        # Redimensionnez self.display à la taille de self.screen
+        self.display = pygame.transform.scale(self.display, self.screen.get_size())
+        self.display_2 = pygame.transform.scale(self.display_2, self.display.get_size())
         
-
-
-        # Calculez la nouvelle taille de la copie de self.display tout en conservant le rapport d'aspect
-        screen_width, screen_height = self.screen.get_size()
-        if screen_width / screen_height > self.aspect_ratio:
-            new_width = int(screen_height * self.aspect_ratio)
-            new_height = screen_height
-        else:
-            new_width = screen_width
-            new_height = int(screen_width / self.aspect_ratio)
-
-        
-
-
-        
-        # Créez une copie redimensionnée de self.display
-        scaled_display_2 = pygame.transform.scale(self.display_2, (new_width, new_height))
-        scaled_display = pygame.transform.scale(self.display, (new_width, new_height))
-        
-       
         # Dessinez la copie redimensionnée de self.display au centre de self.screen
         screenshake_offset = (random.random() * self.screenshake - self.screenshake / 2, random.random() * self.screenshake - self.screenshake / 2)
-        display_rect = scaled_display.get_rect(center=tuple(a + b for a, b in zip(self.screen.get_rect().center, screenshake_offset)))
+        #display_rect = scaled_display.get_rect(center=tuple(a + b for a, b in zip(self.screen.get_rect().center, screenshake_offset)))
         
-        self.screen.blit(scaled_display_2, display_rect)
-        self.screen.blit(scaled_display, display_rect)
+
+        self.screen.blit(self.display_2, screenshake_offset)
+        self.screen.blit(self.display, screenshake_offset)
     
         pygame.display.flip()
 

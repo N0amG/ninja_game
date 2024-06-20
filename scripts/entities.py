@@ -162,6 +162,7 @@ class Player(PhysicsEntity):
             if not self.game.dead:
                 self.game.sfx['hit'].play()
                 self.game.screenshake = max(64, self.game.screenshake)
+                self.game.score_update(-25)
             self.game.dead += 1
             
                     

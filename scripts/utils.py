@@ -13,6 +13,28 @@ def load_image(path):
         print("Error loading image: " + path)
         return None
 
+def load_image_switched_colorkey(path, list_of_colors_tuple):
+    try:
+        img = pygame.image.load(BASE_IMG_PATH + path).convert()
+        img.set_colorkey((0, 0, 0))
+        pixel_array = pygame.PixelArray(img)
+        for old_color, new_color in list_of_colors_tuple:
+            pixel_array.replace(old_color, new_color)
+
+        del pixel_array
+        return img
+    except:
+        print("Error loading image: " + path)
+        return None
+    
+def load_images_switched_colorkey(path, list_of_colors_tuple):
+    images = []
+
+    for img_name in sorted(os.listdir(BASE_IMG_PATH + path)):
+        full_path = path + '/' + img_name
+        if full_path.endswith('.png'):
+            images.append(load_image_switched_colorkey(full_path, list_of_colors_tuple))
+    return images
 
 def load_images(path):
     images = []
