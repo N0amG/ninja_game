@@ -154,8 +154,16 @@ class Player(PhysicsEntity):
         self.dashing = 0
         
     def update(self, tilemap, movement=(0, 0)):
-        if self.velocity[0] != 0: movement = (0, movement[1])
+        
+        if self.velocity[0] != 0 : 
+            movement = (0, movement[1])
         super().update(tilemap, movement=movement)
+        
+        if self.velocity[0] != 0 : 
+            #movement = (0, movement[1])
+            if self.velocity[0] > 0: self.flip = False
+            if self.velocity[0] < 0: self.flip = True
+            
         self.air_time += 1
         
         if self.air_time >= 250:
@@ -225,11 +233,12 @@ class Player(PhysicsEntity):
                 super().jump()
                 return True
         else:
-            self.velocity[1] = -2.5
-            self.velocity[0] = -3.5 if self.last_movement[0] > 0 else 3.5
-            self.flip = not self.flip
-            self.jumps = min(self.jumps + 1, self.available_jump-1)
-            return True
+            if abs(self.velocity[0]) <= 1:
+                self.velocity[1] = -2.5
+                self.velocity[0] = -3.5 if self.last_movement[0] > 0 else 3.5
+                self.flip = not self.flip
+                self.jumps = min(self.jumps + 1, self.available_jump-1)
+                return True
 
     def dash(self):
         if not self.dashing:

@@ -5,6 +5,7 @@ import sys
 
 from scripts.utils import load_images
 from scripts.tilemap import Tilemap
+from scripts.auto_map_creator import MapGenerator
 
 RENDER_SCALE = 1.75
 
@@ -49,9 +50,15 @@ class Editor:
         self.tilemap = Tilemap(self, tile_size=16)
 
         try:
-            self.tilemap.load('level.json')
+            self.map_size = (16, 16)
+            MapGenerator(self, 'grass', self.map_size, spawn_rate=0.5)
+            self.tilemap.load('data/maps/1.json')
+            #self.tilemap.load('data/maps/0.json')
+            #self.tilemap.load('level.json')
+       
         except FileNotFoundError:
-            pass
+            pass #self.tilemap.load('level.json')
+        
         self.scroll = [0, 0]
         
         self.tile_list = list(self.assets)
@@ -61,13 +68,14 @@ class Editor:
         self.clicking = False
         self.right_clicking = False
         self.shift = False
+        self.left_alt = False
         
         self.ongrid = True
+        self.zoom_lvl = RENDER_SCALE
         
     def run(self):
         
         while True:
-            
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -84,19 +92,28 @@ class Editor:
                     elif event.button == 3:
                         self.right_clicking = True
                     
-                    if not self.shift:
+                    if not self.shift and not self.left_alt:
                         if event.button == 4:
                             self.tile_group = (self.tile_group - 1) % len(self.tile_list)
                             self.tile_variant = 0
                         elif event.button == 5:
                             self.tile_group = (self.tile_group + 1) % len(self.tile_list)
                             self.tile_variant = 0
-                    else:
+                    
+                    elif self.shift:
                         if event.button == 4:
                             self.tile_variant = (self.tile_variant - 1) % len(self.assets[self.tile_list[self.tile_group]])
                         elif event.button == 5:
                             self.tile_variant = (self.tile_variant + 1) % len(self.assets[self.tile_list[self.tile_group]])
-                            
+                    
+                    if self.left_alt and not self.shift:
+                        if event.button == 4:
+                            self.zoom_lvl = min(3, self.zoom_lvl + 0.025)
+                            self.display = pygame.transform.scale(self.display, (self.screen.get_width()//self.zoom_lvl, self.screen.get_height()//self.zoom_lvl))
+                        elif event.button == 5:
+                            self.zoom_lvl = max(0.01, self.zoom_lvl - 0.025)
+                            self.display = pygame.transform.scale(self.display, (self.screen.get_width()//self.zoom_lvl, self.screen.get_height()//self.zoom_lvl))
+
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if event.button == 1:
                         self.clicking = False
@@ -114,9 +131,17 @@ class Editor:
                         self.movement[3] = True
                     elif event.key == pygame.K_LSHIFT:
                         self.shift = True
+                    elif event.key == pygame.K_LALT:
+                        self.left_alt = True
                     elif event.key == pygame.K_g:
                         self.ongrid = not self.ongrid
-
+                    elif event.key == pygame.K_p:
+                        MapGenerator(self, 'grass', self.map_size)
+                        self.tilemap.load('data/maps/perlin_noise_map.json')
+                    elif event.key == pygame.K_l:
+                        self.tilemap.load('data/maps/perlin_noise_map.json')
+                    elif event.key == pygame.K_c:
+                        print(self.tilemap.chunks_map)
                     elif event.key == pygame.K_o:
                         self.tilemap.save('level.json')
                     
@@ -133,7 +158,8 @@ class Editor:
                         self.movement[3] = False
                     elif event.key == pygame.K_LSHIFT:
                         self.shift = False
-                        
+                    elif event.key == pygame.K_LALT:
+                        self.left_alt = False
                 elif event.type == pygame.JOYBUTTONDOWN:
                     if event.button == 0:
                         self.clicking = True
@@ -174,8 +200,8 @@ class Editor:
 
     def update(self):
 
-        self.scroll[0] += (self.movement[1] - self.movement[0]) * 2
-        self.scroll[1] += (self.movement[3] - self.movement[2]) * 2
+        self.scroll[0] += (self.movement[1] - self.movement[0]) * 2/ (self.zoom_lvl/3)
+        self.scroll[1] += (self.movement[3] - self.movement[2]) * 2 / (self.zoom_lvl/3)
         
         
         
@@ -195,8 +221,9 @@ class Editor:
             scale_factor = screen_width / self.display.get_width()
 
         # Ajustez la position de la souris en fonction du facteur de mise à l'échelle et des marges
-        self.mpos = ((mpos[0] / scale_factor) - margin_x/2 // RENDER_SCALE, (mpos[1] / scale_factor) - margin_y/2 // RENDER_SCALE)
+        self.mpos = ((mpos[0] / scale_factor) - margin_x/2 // self.zoom_lvl, (mpos[1] / scale_factor) - margin_y/2 // self.zoom_lvl)
 
+        
         render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
         self.tile_pos = (int((self.mpos[0] + render_scroll[0]) // self.tilemap.tile_size), int((self.mpos[1] + render_scroll[1]) // self.tilemap.tile_size))
 
@@ -218,16 +245,27 @@ class Editor:
                 if pygame.Rect(tile['pos'][0] - self.scroll[0], tile['pos'][1] - self.scroll[1], tile_img.get_width(), tile_img.get_height()).collidepoint(self.mpos):
                     self.tilemap.offgrid_tiles.remove(tile)
                     break
+        
     def render(self):
         # Remplissez self.screen avec du noir
         self.screen.fill((0, 0, 0))
-    
+        
+        self.display.fill((0, 100, 200))
+        self.display = pygame.transform.scale(self.display, (self.screen.get_width()//self.zoom_lvl, self.screen.get_height()//self.zoom_lvl))
+        
         # Dessinez vos objets de jeu sur self.display
-        self.display.fill((50, 150, 255))
-
         
         render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
+        
         self.tilemap.render(self.display, offset=render_scroll)
+
+        #affiché les délimitation de chunks de 16x16 tiles hronzitonales et verticales, qui gardent leur position sur l'écran meme si la caméra bouge
+        color = (255, 255, 255)
+        for x in range(0, self.display.get_width(), 16 * self.tilemap.tile_size):
+            pygame.draw.line(self.display, color, (x-render_scroll[0], 0), (x-render_scroll[0], self.display.get_height()), 1)
+        for y in range(0, self.display.get_height(), 16 * self.tilemap.tile_size):
+            pygame.draw.line(self.display, color, (0, y-render_scroll[1]), (self.display.get_width(), y-render_scroll[1]), 1)
+        
         
         current_tile_img = self.assets[self.tile_list[self.tile_group]][self.tile_variant].copy()
         current_tile_img.set_alpha(128)
@@ -236,25 +274,15 @@ class Editor:
             self.display.blit(current_tile_img, (self.tile_pos[0] * self.tilemap.tile_size - render_scroll[0], self.tile_pos[1] * self.tilemap.tile_size - render_scroll[1]))
         else:
             self.display.blit(current_tile_img, (self.mpos[0], self.mpos[1]))
-        # Calculez la nouvelle taille de la copie de self.display tout en conservant le rapport d'aspect
-        screen_width, screen_height = self.screen.get_size()
-        if screen_width / screen_height > self.aspect_ratio:
-            new_width = int(screen_height * self.aspect_ratio)
-            new_height = screen_height
-        else:
-            new_width = screen_width
-            new_height = int(screen_width / self.aspect_ratio)
 
-        # Créez une copie redimensionnée de self.display
-        scaled_display = pygame.transform.scale(self.display, (new_width, new_height))
-        #scaled_display = pygame.transform.scale(self.display, self.screen.get_size())
         
-        # Dessinez la copie redimensionnée de self.display au centre de self.screen
-        display_rect = scaled_display.get_rect(center=self.screen.get_rect().center)
-        self.screen.blit(scaled_display, display_rect)
+        # Redimensionnez self.display à la taille de self.screen
+        self.display = pygame.transform.scale(self.display, self.screen.get_size())
+        
+
+        self.screen.blit(self.display, (0, 0))
     
         pygame.display.flip()
-        
         
 
 Editor().run()

@@ -10,6 +10,7 @@ from scripts.tilemap import Tilemap
 from scripts.clouds import Clouds
 from scripts.particle import Particle
 from scripts.sparks import Spark
+#from scripts.perlin_noise_map_creator import MapGenerator
 
 SCREEN_SIZE = 1
 RENDER_SCALE = 3.5 # 1.75 pour screen size de 2
@@ -142,7 +143,7 @@ class Game:
         
         self.score = 0
         
-        self.level = 0
+        self.level = 2
         self.world = 0
         
         self.load_level(self.level)
@@ -172,14 +173,16 @@ class Game:
     def load_level(self, map_id):
         self.score_update(50) if self.level != 0 else None
         if map_id % 3 == 0:
-            self.world += 1 if map_id != 0 else 1
+            self.world += 1 if map_id != 0 else 0
             self.score_update(100) if self.world != 0 else None
             
             if self.world == 1:
                 
-                self.switch_assets_color(self.death_color_list)
+                self.switch_assets_color(self.winter_color_list)
 
         self.tilemap.load('data/maps/' + str(map_id) + '.json')
+        
+        #self.tilemap.load('data/maps/perlin_noise_map.json')
         
         self.leaf_spawners = []
         for tree in self.tilemap.extract([('large_decor', 2)], keep=True):
@@ -235,6 +238,8 @@ class Game:
                     elif event.key == pygame.K_UP or event.key == pygame.K_SPACE:
                         if self.player.jump():
                             self.sfx['jump'].play()
+                    elif event.key == pygame.K_c:
+                        self.tilemap.chunksManager.update()
                 elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_LEFT or event.key == pygame.K_q:
                         self.movement[0] = False
