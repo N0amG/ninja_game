@@ -136,8 +136,9 @@ class Game:
         self.clouds = Clouds(self.assets['clouds'])
         
         self.movement = [False, False]
-
-        self.player = Player(self, (250, 50))
+        self.id = 0
+        
+        self.player = Player(self, (250, 50), self.id)
 
         self.tilemap = Tilemap(self, tile_size=16)
         
@@ -184,6 +185,8 @@ class Game:
         
         #self.tilemap.load('data/maps/perlin_noise_map.json')
         
+        self.id = 0
+        self.tilemap.chunksManager.clear_entity()
         self.leaf_spawners = []
         for tree in self.tilemap.extract([('large_decor', 2)], keep=True):
             self.leaf_spawners.append(pygame.Rect(4 + tree['pos'][0], 4 + tree['pos'][1], 23, 13))
@@ -194,19 +197,22 @@ class Game:
                 self.player.pos = spawner['pos']
                 self.player.air_time = 0
             else:
-                self.enemies.append(Enemy(self, spawner['pos']))
+                self.enemies.append(Enemy(self, spawner['pos'],self.id))
+                self.id += 1
+                self.tilemap.chunksManager.add_entity(self.enemies[-1])
 
         self.projectiles = []
         self.particles = []
         self.sparks = []
 
-        self.player = Player(self, self.player.pos)
+        self.player = Player(self, self.player.pos, self.id)
         
         self.scroll = [0, 0]
         self.dead = 0
         self.screenshake = 0
         
         self.transition = -30
+    
     def run(self):
         
         pygame.mixer.music.load('data/music.wav')
@@ -276,7 +282,7 @@ class Game:
 
 
     def update(self):        
-        
+
         self.screenshake = max(0, self.screenshake - 1)
         
         if self.dead:
@@ -323,10 +329,10 @@ class Game:
                 self.enemies.remove(enemy)
                 self.score_update(10)
         
-        for rect in self.leaf_spawners:
+        '''for rect in self.leaf_spawners:
             if random.random() * 49999 < rect.width * rect.height:
                 pos = (rect.x + random.random() * rect.width, rect.y + random.random() * rect.height)
-                self.particles.append(Particle(self, 'leaf', pos, velocity=[-0.1, 0.3], frame=random.randint(0, 20)))
+                self.particles.append(Particle(self, 'leaf', pos, velocity=[-0.1, 0.3], frame=random.randint(0, 20)))'''
 
         for sparks in self.sparks.copy():
             kill = sparks.update()

@@ -1,6 +1,8 @@
 import pygame
 import json
 import copy
+import random
+from scripts.particle import Particle
 
 NEIGHBORS_OFFSETS = [(-1, 0), (-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (0, 0)]
 
@@ -93,7 +95,34 @@ class Tilemap:
             if chunk_loc not in self.chunks_map:
                 self.chunks_map[chunk_loc] = []
             self.chunks_map[chunk_loc].append(tile)
+        
+        return self.chunks_map
+    
+    '''    
+    def chunk_mapping(self):
+        self.chunks_map = {}
+        offgrid_tiles = copy.deepcopy(self.offgrid_tiles)
 
+        # Convertir les positions des tuiles offgrid en coordonnées de grille
+        for tile in offgrid_tiles:
+            tile['pos'] = (tile['pos'][0] // self.tile_size, tile['pos'][1] // self.tile_size)
+                
+        # Combiner toutes les tuiles
+        total_tiles = list(self.tilemap.values()) + offgrid_tiles
+        for tile in total_tiles:
+            # Calculer les coordonnées du chunk pour chaque tuile
+            chunk_coordinates = (tile['pos'][0] // self.chunk_size, tile['pos'][1] // self.chunk_size)
+            chunk_loc = str(int(chunk_coordinates[0])) + ";" + str(int(chunk_coordinates[1]))
+            
+            # Si le chunk n'existe pas, créez un nouvel objet Chunk
+            if chunk_loc not in self.chunks_map:
+                self.chunks_map[chunk_loc] = Chunk( self.game, chunk_coordinates, self.chunk_size, self.tile_size)
+            
+            # Ajouter la tuile à l'objet Chunk correspondant
+            self.chunks_map[chunk_loc].add_tile(tile['pos'], tile)
+        
+        return self.chunks_map
+    '''
 
     def chunks_around(self, pos):
         chunks_around = {}
@@ -156,7 +185,7 @@ class Tilemap:
         self.tilemap = map_data['tilemap']
         self.tile_size= map_data['tile_size']
         self.offgrid_tiles = map_data['offgrid']
-        self.chunksManager.set_chunks(self.chunk_mapping())
+        self.chunksManager.set_chunks(chunks=self.chunk_mapping())
     
     def autotile(self):
         for loc in self.tilemap:
@@ -189,27 +218,44 @@ class Tilemap:
 
 class Chunk:
     
-    def __init__(self, game, pos, tiles_list, entities_list = [], size=16):
+    def __init__(self, game, loc, tiles, entities_list = [], size=16):
         self.game = game
         self.size = size
-        self.pos = pos
-        self.tiles = tiles_list
+        self.tiles = tiles
         self.entities = entities_list
-        self.chunk_loc = str(pos[0]//self.size) + ";" + str(pos[1]//self.size)
+        self.leaf_spawners = []
+        self.loc = loc
+    
     
     def get_loc(self):
-        return self.chunk_loc
+        return self.loc
+
     
-    def get_pos(self):
-        return self.pos
-    
-    def add_tile(self, tile):
-        if tile not in self.tiles:
-            self.tiles.append(tile)
+    def add_tile(self, loc, tile):
+        tile_loc = str(loc[0]) + ";" + str(loc[1])
+        if tile_loc not in self.tiles:
+            self.tiles[tile_loc] = tile
     
     def add_entity(self, entity):
         if entity not in self.entities:
             self.entities.append(entity)
+    
+    def add_leaf_spawners(self, leaf_spawners):
+        if leaf_spawners not in self.leaf_spawners:
+            self.leaf_spawners.append(leaf_spawners)
+    
+    def clear_entity(self):
+        self.entities = []
+    
+    def update(self):
+        for entity in self.entities:
+            entity.update(self.game.tilemap)
+            
+        for rect in self.leaf_spawners:
+            if random.random() * 49999 < rect.width * rect.height:
+                pos = (rect.x + random.random() * rect.width, rect.y + random.random() * rect.height)
+                self.particles.append(Particle(self, 'leaf', pos, velocity=[-0.1, 0.3], frame=random.randint(0, 20)))
+        
     
     def render(self, surf, offset=(0, 0)):
         for tile in self.tiles:
@@ -218,19 +264,39 @@ class Chunk:
         for entity in self.entities:
             entity.render(surf, offset)
 
+    def __str__(self) -> str:
+        return f"chunk : {self.loc} | tiles: {len(self.tiles)} | entities: {len(self.entities)}"
+    
 class ChunksManager:
     
     def __init__(self, game, tilemap, chunk_size=16):
         self.game = game
+        self.player = self.game.player
         self.tilemap = tilemap
         self.chunk_size = chunk_size
         self.chunks = {}
         self.loaded_chunks = self.chunks_around()
+        self.player_chunk = self.get_chunk(self.player.rect().center)
     
     def set_chunks(self, chunks):
-        self.chunks = chunks
-        print("ici")
-        
+        for chunk in chunks.copy():
+            self.chunks[chunk]= Chunk(self.game, chunk, chunks[chunk])
+        self.load_chunks()
+    
+    def add_entity(self, entity):
+        entity_chunk = self.get_chunk(entity.rect().center)
+        if entity_chunk:
+            entity_chunk.add_entity(entity)
+    
+    def add_leaf_spawners(self, leaf_spawners):
+        leaf_spawners_chunk = self.get_chunk(leaf_spawners.rect().center)
+        if leaf_spawners_chunk:
+            leaf_spawners_chunk.add_leaf_spawners(leaf_spawners)
+    
+    def clear_entity(self):
+        for chunk in self.chunks:
+            self.chunks[chunk].clear_entity()
+            
     def add_chunk(self, chunk):
         self.chunks[chunk.get_loc()] = chunk
 
@@ -240,7 +306,7 @@ class ChunksManager:
             return self.chunks[chunk_loc]
     
     def chunks_around(self):
-        pos = self.game.player.rect().center
+        pos = self.player.rect().center
         chunks_around = {}
         tile_size = self.tilemap.tile_size
         chunk_loc = (pos[0] // tile_size // self.chunk_size, pos[1] // tile_size // self.chunk_size)
@@ -252,13 +318,18 @@ class ChunksManager:
                     chunks_around[check_loc] = chunk
         return chunks_around
     
-    def update(self):
-        player_chunk = self.get_chunk(self.game.player.rect().center)
-        for chunk in self.loaded_chunks:
-            if chunk != player_chunk:
-                for entity in chunk.entities:
-                    entity.update(self.game.tilemap)
+    def load_chunks(self):
+        current_player_chunk = self.get_chunk(self.player.rect().center)
+        if current_player_chunk != self.player_chunk:
+            self.player_chunk = current_player_chunk
+            self.loaded_chunks = self.chunks_around()
     
+    def update(self):
+        self.load_chunks()
+        for chunk in self.loaded_chunks:
+            print(self.loaded_chunks[chunk])
+            self.loaded_chunks[chunk].update()
+            
     def render(self, surf, offset=(0, 0)):
         for chunk in self.chunks:
             chunk.render(surf, offset)

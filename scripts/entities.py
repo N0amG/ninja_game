@@ -4,8 +4,10 @@ import math
 import random
 from scripts.sparks import Spark
 
+
+
 class PhysicsEntity:
-    def __init__(self, game, e_type, pos, size):
+    def __init__(self, game, e_type, id, pos, size):
         self.game = game
         self.type = e_type
         self.pos = list(pos)
@@ -20,6 +22,11 @@ class PhysicsEntity:
         self.set_action('idle')
         
         self.last_movement = [0, 0]
+        
+        self.id = id
+    
+    def __str__(self):
+        return f'{self.type}, {self.id}'
     
     def rect(self):
         return pygame.Rect(self.pos[0], self.pos[1], self.size[0], self.size[1])
@@ -83,8 +90,8 @@ class PhysicsEntity:
 
 class Enemy(PhysicsEntity):
         
-        def __init__(self, game, pos):
-            super().__init__(game, 'enemy', pos, (8, 15))
+        def __init__(self, game, pos, id):
+            super().__init__(game, 'enemy', id, pos, (8, 15))
             self.walking = 0
 
         def update(self, tilemap, movement=(0, 0)):
@@ -99,7 +106,7 @@ class Enemy(PhysicsEntity):
 
                 if not self.walking:
                     dist = (self.game.player.pos[0] - self.pos[0], self.game.player.pos[1] - self.pos[1])
-                    if (abs(dist[1]) < 16):
+                    if (abs(dist[1]) < 16) and (abs(dist[0]) < 200):
                         if self.flip and dist[0] < 0:
                             self.game.projectiles.append([ [self.rect().centerx -7, self.rect().centery], -1.5, 0])
                             self.game.sfx["shoot"].play()
@@ -146,8 +153,8 @@ class Enemy(PhysicsEntity):
 
 class Player(PhysicsEntity):
     
-    def __init__(self, game, pos):
-        super().__init__(game, 'player', pos, (8, 15))
+    def __init__(self, game, pos, id):
+        super().__init__(game, 'player', id, pos, (8, 15))
         self.air_time = 0
         self.available_jump = 2
         self.jumps = self.available_jump
@@ -233,12 +240,11 @@ class Player(PhysicsEntity):
                 super().jump()
                 return True
         else:
-            if abs(self.velocity[0]) <= 1:
-                self.velocity[1] = -2.5
-                self.velocity[0] = -3.5 if self.last_movement[0] > 0 else 3.5
-                self.flip = not self.flip
-                self.jumps = min(self.jumps + 1, self.available_jump-1)
-                return True
+            self.velocity[1] = -2.5
+            self.velocity[0] = -3.5 if self.collisions["right"] else 3.5
+            self.flip = not self.flip
+            self.jumps = min(self.jumps + 1, self.available_jump-1)
+            return True
 
     def dash(self):
         if not self.dashing:
