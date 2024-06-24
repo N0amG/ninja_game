@@ -144,7 +144,7 @@ class Game:
         
         self.score = 0
         
-        self.level = 2
+        self.level = 1
         self.world = 0
         
         self.load_level(self.level)
@@ -181,33 +181,32 @@ class Game:
                 
                 self.switch_assets_color(self.winter_color_list)
 
-        self.tilemap.load('data/maps/' + str(map_id) + '.json')
-        
+        try:
+            self.tilemap.load('data/maps/' + str(map_id) + '.json')
+        except:
+            self.level = 0
+            self.tilemap.load('data/maps/' + str(self.level) + '.json')
         #self.tilemap.load('data/maps/perlin_noise_map.json')
         
+        if self.tilemap.chunksManager.respawn_pos:
+            self.player.pos = self.tilemap.chunksManager.respawn_pos
+            
         self.id = 0
-        self.tilemap.chunksManager.clear_entity()
-        self.leaf_spawners = []
-        for tree in self.tilemap.extract([('large_decor', 2)], keep=True):
-            self.leaf_spawners.append(pygame.Rect(4 + tree['pos'][0], 4 + tree['pos'][1], 23, 13))
+        self.tilemap.chunksManager.reset()
 
-        self.enemies = []
-        for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1)]):
-            if spawner['variant'] == 0:
-                self.player.pos = spawner['pos']
-                self.player.air_time = 0
-            else:
-                self.enemies.append(Enemy(self, spawner['pos'],self.id))
-                self.id += 1
-                self.tilemap.chunksManager.add_entity(self.enemies[-1])
-
+        print(len(self.leaf_spawners))
         self.projectiles = []
         self.particles = []
         self.sparks = []
-
         self.player = Player(self, self.player.pos, self.id)
+        self.tilemap.chunksManager.set_player(self.player)
         
         self.scroll = [0, 0]
+        self.scroll[0] = self.player.rect().centerx - self.display.get_width() / 2
+        self.scroll[1] = self.player.rect().centery - self.display.get_height() / 2
+        
+        self.show_chunks_grid = True
+        
         self.dead = 0
         self.screenshake = 0
         
@@ -245,7 +244,7 @@ class Game:
                         if self.player.jump():
                             self.sfx['jump'].play()
                     elif event.key == pygame.K_c:
-                        self.tilemap.chunksManager.update()
+                        self.show_chunks_grid = not self.show_chunks_grid
                 elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_LEFT or event.key == pygame.K_q:
                         self.movement[0] = False
@@ -282,7 +281,6 @@ class Game:
 
 
     def update(self):        
-
         self.screenshake = max(0, self.screenshake - 1)
         
         if self.dead:
@@ -294,14 +292,14 @@ class Game:
                 self.load_level(self.level)
 
         if not self.dead:
-            self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
+            self.player.update(self.tilemap.chunksManager, (self.movement[1] - self.movement[0], 0))
 
         # [ [x, y], direction, timer]
         for projectile in self.projectiles.copy():
             projectile[0][0] += projectile[1]
             projectile[2] += 1
             
-            if self.tilemap.solid_check(projectile[0]):
+            if self.tilemap.chunksManager.solid_check(projectile[0]):
                 self.projectiles.remove(projectile)
                 for i in range(4):
                     self.sparks.append(Spark(projectile[0], random.random() - 0.5 + (math.pi if projectile[1] > 0 else 0), 2 + random.random()))
@@ -322,23 +320,15 @@ class Game:
                     self.sfx['hit'].play()
                     
         self.clouds.update()
-
-        for enemy in self.enemies.copy():
-            kill = enemy.update(self.tilemap, (0, 0))
-            if kill:
-                self.enemies.remove(enemy)
-                self.score_update(10)
         
-        '''for rect in self.leaf_spawners:
-            if random.random() * 49999 < rect.width * rect.height:
-                pos = (rect.x + random.random() * rect.width, rect.y + random.random() * rect.height)
-                self.particles.append(Particle(self, 'leaf', pos, velocity=[-0.1, 0.3], frame=random.randint(0, 20)))'''
+
+        self.tilemap.chunksManager.update()
 
         for sparks in self.sparks.copy():
             kill = sparks.update()
             if kill:
                 self.sparks.remove(sparks)
-        
+
         for particle in self.particles.copy():
             kill = particle.update()
             if particle.type == 'leaf':
@@ -347,15 +337,18 @@ class Game:
                 self.particles.remove(particle)
         
         
+        # transition de niveau pass pour l'instant
         if not len(self.enemies):
             self.transition += 1
             if self.transition > 30:
                 self.level = min(self.level + 1, len(os.listdir('data/maps')) -1)
                 self.load_level(self.level)
-
+        
         if self.transition < 0:
             self.transition += 1
 
+    
+    
     def render(self):
         # Remplissez self.screen avec du noir
         self.screen.fill((0, 0, 0))
@@ -375,18 +368,21 @@ class Game:
         
         self.clouds.render(self.display_2, offset=render_scroll)
         
-        self.tilemap.render(self.display, offset=render_scroll)
+        self.tilemap.chunksManager.render(self.display, offset=render_scroll)
         
         if not self.dead:
             self.player.render(self.display, offset=render_scroll)
         
         
-        for enemy in self.enemies:
+        ''' for enemy in self.enemies:
             enemy.render(self.display, offset=render_scroll)
+        '''
         
         img = self.assets['projectile']
         for projectile in self.projectiles:
             self.display.blit(img, (projectile[0][0] - img.get_width()/2- render_scroll[0], projectile[0][1] - img.get_height()/2 - render_scroll[1]))
+        
+        
         
         for sparks in self.sparks:
             sparks.render(self.display, offset=render_scroll)
@@ -403,9 +399,8 @@ class Game:
         for particle in self.particles:
             particle.render(self.display, offset=render_scroll)
 
-        
-        
-        
+        if self.show_chunks_grid: self.tilemap.chunksManager.chunks_grid_render(self.display, offset=render_scroll)
+                
         # transitions
         if self.transition:
             transition_surf = pygame.Surface(self.display.get_size())

@@ -31,7 +31,10 @@ class Editor:
         self.fps = 75
         self.dt = 1
         
-        
+        # Simulation joueur
+        self.player = type('MyClass', (object,), {"rect": lambda: pygame.Rect(0, 0, 0, 0)})
+
+                
         # Initialisation des manettes
         pygame.joystick.init()
         self.joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())]
@@ -50,16 +53,18 @@ class Editor:
         self.tilemap = Tilemap(self, tile_size=16)
 
         try:
-            self.map_size = (16, 16)
-            MapGenerator(self, 'grass', self.map_size, spawn_rate=0.5)
+            self.map_size = (1024, 1024)
+            #MapGenerator(self, 'grass', self.map_size, spawn_rate=0.5)
+            #self.tilemap.load('data/maps/perlin_noise_map.json')
             self.tilemap.load('data/maps/1.json')
-            #self.tilemap.load('data/maps/0.json')
             #self.tilemap.load('level.json')
        
         except FileNotFoundError:
-            pass #self.tilemap.load('level.json')
+            return FileNotFoundError #self.tilemap.load('level.json')
         
         self.scroll = [0, 0]
+        
+        self.show_chunks_grid = False
         
         self.tile_list = list(self.assets)
         self.tile_group = 0
@@ -111,7 +116,7 @@ class Editor:
                             self.zoom_lvl = min(3, self.zoom_lvl + 0.025)
                             self.display = pygame.transform.scale(self.display, (self.screen.get_width()//self.zoom_lvl, self.screen.get_height()//self.zoom_lvl))
                         elif event.button == 5:
-                            self.zoom_lvl = max(0.01, self.zoom_lvl - 0.025)
+                            self.zoom_lvl = max(0.25, self.zoom_lvl - 0.025)
                             self.display = pygame.transform.scale(self.display, (self.screen.get_width()//self.zoom_lvl, self.screen.get_height()//self.zoom_lvl))
 
                 elif event.type == pygame.MOUSEBUTTONUP:
@@ -141,7 +146,7 @@ class Editor:
                     elif event.key == pygame.K_l:
                         self.tilemap.load('data/maps/perlin_noise_map.json')
                     elif event.key == pygame.K_c:
-                        print(self.tilemap.chunks_map)
+                        self.show_chunks_grid = not self.show_chunks_grid
                     elif event.key == pygame.K_o:
                         self.tilemap.save('level.json')
                     
@@ -257,15 +262,9 @@ class Editor:
         
         render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
         
-        self.tilemap.render(self.display, offset=render_scroll)
+        self.tilemap.chunksManager.render(self.display, offset=render_scroll)
 
-        #affiché les délimitation de chunks de 16x16 tiles hronzitonales et verticales, qui gardent leur position sur l'écran meme si la caméra bouge
-        color = (255, 255, 255)
-        for x in range(0, self.display.get_width(), 16 * self.tilemap.tile_size):
-            pygame.draw.line(self.display, color, (x-render_scroll[0], 0), (x-render_scroll[0], self.display.get_height()), 1)
-        for y in range(0, self.display.get_height(), 16 * self.tilemap.tile_size):
-            pygame.draw.line(self.display, color, (0, y-render_scroll[1]), (self.display.get_width(), y-render_scroll[1]), 1)
-        
+        if self.show_chunks_grid : self.tilemap.chunksManager.chunks_grid_render(self.display, offset=render_scroll)
         
         current_tile_img = self.assets[self.tile_list[self.tile_group]][self.tile_variant].copy()
         current_tile_img.set_alpha(128)

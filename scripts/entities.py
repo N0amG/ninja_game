@@ -36,13 +36,13 @@ class PhysicsEntity:
             self.action = action
             self.animation = self.game.assets[self.type + '/' + self.action].copy()
 
-    def update(self, tilemap, movement=(0, 0)):
+    def update(self, chunksManager, movement=(0, 0), tag = None):
         self.collisions = {'up': False, 'down': False, 'right': False, 'left': False}
         
         frame_movement = (movement[0] + self.velocity[0], movement[1] + self.velocity[1])
         self.pos[0] += frame_movement[0]
         entity_rect = self.rect()
-        for rect in tilemap.physics_rects_around(self.pos):
+        for rect in chunksManager.physics_rects_around(self.pos, tag=tag):
             if entity_rect.colliderect(rect):
                 if frame_movement[0] > 0:
                     entity_rect.right = rect.left
@@ -54,7 +54,7 @@ class PhysicsEntity:
         
         self.pos[1] += frame_movement[1]
         entity_rect = self.rect()
-        for rect in tilemap.physics_rects_around(self.pos):
+        for rect in chunksManager.physics_rects_around(self.pos):
             if entity_rect.colliderect(rect):
                 if frame_movement[1] > 0:
                     entity_rect.bottom = rect.top
@@ -94,10 +94,10 @@ class Enemy(PhysicsEntity):
             super().__init__(game, 'enemy', id, pos, (8, 15))
             self.walking = 0
 
-        def update(self, tilemap, movement=(0, 0)):
+        def update(self, chunksManager, movement=(0, 0)):
 
             if self.walking:
-                if tilemap.solid_check((self.rect().centerx + (-7 if self.flip else 7), self.pos[1] + 23)) and not (self.collisions['right'] or self.collisions['left']):
+                if chunksManager.solid_check((self.rect().centerx + (-7 if self.flip else 7), self.pos[1] + 23)) and not (self.collisions['right'] or self.collisions['left']):
                     movement = (movement[0] - 0.5 if self.flip else 0.5, movement[1])
                 else: 
                     self.flip = not self.flip
@@ -122,7 +122,7 @@ class Enemy(PhysicsEntity):
                 self.walking = random.randint(30, 120)
                 self.flip = not self.flip
             
-            super().update(tilemap, movement=movement)
+            super().update(chunksManager, movement=movement)
             
             if movement[0] != 0:
                 self.set_action('run')
@@ -160,17 +160,17 @@ class Player(PhysicsEntity):
         self.jumps = self.available_jump
         self.dashing = 0
         
-    def update(self, tilemap, movement=(0, 0)):
+    def update(self, chunksManager, movement=(0, 0)):
         
         if self.velocity[0] != 0 : 
-            movement = (0, movement[1])
-        super().update(tilemap, movement=movement)
-        
+            if (movement[0] > 0 and self.velocity[0] < 0) or (movement[0] < 0 and self.velocity[0] > 0):
+                movement = (-movement[0], movement[1])
+
+        super().update(chunksManager, movement=movement, tag="player")
         if self.velocity[0] != 0 : 
-            #movement = (0, movement[1])
             if self.velocity[0] > 0: self.flip = False
             if self.velocity[0] < 0: self.flip = True
-            
+                
         self.air_time += 1
         
         if self.air_time >= 250:
@@ -241,7 +241,7 @@ class Player(PhysicsEntity):
                 return True
         else:
             self.velocity[1] = -2.5
-            self.velocity[0] = -3.5 if self.collisions["right"] else 3.5
+            self.velocity[0] = -3 if self.collisions["right"] else 3
             self.flip = not self.flip
             self.jumps = min(self.jumps + 1, self.available_jump-1)
             return True
