@@ -53,10 +53,10 @@ class Editor:
         self.tilemap = Tilemap(self, tile_size=16)
 
         try:
-            self.map_size = (1024, 1024)
-            #MapGenerator(self, 'grass', self.map_size, spawn_rate=0.5)
-            #self.tilemap.load('data/maps/perlin_noise_map.json')
-            self.tilemap.load('data/maps/1.json')
+            self.map_size = (512, 512)
+            MapGenerator(self, 'grass', self.map_size, spawn_rate=0.5)
+            self.tilemap.load('data/maps/perlin_noise_map.json')
+            #self.tilemap.load('data/maps/3.json')
             #self.tilemap.load('level.json')
        
         except FileNotFoundError:
@@ -152,6 +152,7 @@ class Editor:
                     
                     elif event.key == pygame.K_t:
                         self.tilemap.autotile()
+
                 elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_LEFT or event.key == pygame.K_q:
                         self.movement[0] = False
@@ -233,10 +234,11 @@ class Editor:
         self.tile_pos = (int((self.mpos[0] + render_scroll[0]) // self.tilemap.tile_size), int((self.mpos[1] + render_scroll[1]) // self.tilemap.tile_size))
 
         if self.clicking and self.ongrid:
-            self.tilemap.tilemap[str(self.tile_pos[0]) + ';' + str(self.tile_pos[1])] = {'type': self.tile_list[self.tile_group], 'variant': self.tile_variant, 'pos': self.tile_pos}
+            self.tilemap.chunksManager.add_tile({'type': self.tile_list[self.tile_group], 'variant': self.tile_variant, 'pos': (self.mpos[0] + render_scroll[0], self.mpos[1] + render_scroll[1])})
         
         elif self.clicking and not self.ongrid:
-            self.tilemap.offgrid_tiles.append({'type': self.tile_list[self.tile_group], 'variant': self.tile_variant, 'pos': (self.mpos[0] + render_scroll[0], self.mpos[1] + render_scroll[1])})
+            print([self.mpos[0] + render_scroll[0], self.mpos[1] + render_scroll[1]])
+            self.tilemap.chunksManager.add_tile({'type': self.tile_list[self.tile_group], 'variant': self.tile_variant, 'pos': [self.mpos[0] + render_scroll[0], self.mpos[1] + render_scroll[1]]})
             self.clicking = False
                                               
         if self.right_clicking and self.ongrid:

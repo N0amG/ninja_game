@@ -6,7 +6,7 @@ import math
 
 from scripts.utils import load_image, load_images, Animation, load_image_switched_colorkey, load_images_switched_colorkey
 from scripts.entities import Player, Enemy
-from scripts.tilemap import Tilemap
+from scripts.tilemap import Tilemap, ChunksManager
 from scripts.clouds import Clouds
 from scripts.particle import Particle
 from scripts.sparks import Spark
@@ -144,7 +144,7 @@ class Game:
         
         self.score = 0
         
-        self.level = 1
+        self.level = 0
         self.world = 0
         
         self.load_level(self.level)
@@ -172,6 +172,8 @@ class Game:
             self.clouds = Clouds(self.assets['clouds'])
         
     def load_level(self, map_id):
+        
+
         self.score_update(50) if self.level != 0 else None
         if map_id % 3 == 0:
             self.world += 1 if map_id != 0 else 0
@@ -186,15 +188,17 @@ class Game:
         except:
             self.level = 0
             self.tilemap.load('data/maps/' + str(self.level) + '.json')
-        #self.tilemap.load('data/maps/perlin_noise_map.json')
+        self.tilemap.load('data/maps/perlin_noise_map.json')
         
         if self.tilemap.chunksManager.respawn_pos:
             self.player.pos = self.tilemap.chunksManager.respawn_pos
-            
+        
+        self.enemies = []
+        self.leaf_spawners = []
+        
         self.id = 0
         self.tilemap.chunksManager.reset()
-
-        print(len(self.leaf_spawners))
+        
         self.projectiles = []
         self.particles = []
         self.sparks = []
@@ -365,27 +369,26 @@ class Game:
         self.scroll[1] += (self.player.rect().centery - self.display.get_height() / 2 - self.scroll[1]) / 20
         render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
 
+        compteur = [0, 0, 0, 0, 0, 0] # [tiles, enemy, leafs, projectiles, sparks, particles]
         
         self.clouds.render(self.display_2, offset=render_scroll)
         
-        self.tilemap.chunksManager.render(self.display, offset=render_scroll)
+        compteur = [x+y for x, y in zip(compteur, self.tilemap.chunksManager.render(self.display, offset=render_scroll))]
         
         if not self.dead:
             self.player.render(self.display, offset=render_scroll)
         
         
-        ''' for enemy in self.enemies:
-            enemy.render(self.display, offset=render_scroll)
-        '''
-        
         img = self.assets['projectile']
+        
         for projectile in self.projectiles:
             self.display.blit(img, (projectile[0][0] - img.get_width()/2- render_scroll[0], projectile[0][1] - img.get_height()/2 - render_scroll[1]))
-        
-        
+            compteur[3] += 1
+            
         
         for sparks in self.sparks:
             sparks.render(self.display, offset=render_scroll)
+            compteur[4] += 1
         
         score, score_render = self.score_update()
         self.display.blit(score_render, (2, 2))
@@ -397,7 +400,16 @@ class Game:
         
         
         for particle in self.particles:
-            particle.render(self.display, offset=render_scroll)
+            x, y = particle.pos  # Assurez-vous que particle.pos existe et contient la position
+            # Convertir la position de la particule en tenant compte de l'offset de rendu
+            x -= render_scroll[0]
+            y -= render_scroll[1]
+            # Vérifier si la particule est dans la zone visible de l'écran avant de la rendre
+            if 0 <= x < self.display.get_width() and 0 <= y < self.display.get_height():
+                particle.render(self.display, offset=render_scroll)
+                compteur[5] += 1
+        
+        #print(compteur)
 
         if self.show_chunks_grid: self.tilemap.chunksManager.chunks_grid_render(self.display, offset=render_scroll)
                 
@@ -419,7 +431,28 @@ class Game:
 
         self.screen.blit(self.display_2, screenshake_offset)
         self.screen.blit(self.display, screenshake_offset)
-    
+
+
+        # Créez un objet de police pour dessiner le texte
+        font = pygame.font.Font(None, 35)  # Utilisez None pour la police par défaut de pygame, et 24 pour la taille
+
+        # Créez le texte des FPS minimum
+        fps_text = font.render(f"FPS: {int(self.clock.get_fps())}", True, (255, 255, 255))
+        
+        
+        #self.tilemap.chunksManager.displayed_tiles_number_render(compteur[0], self.screen, offset)
+        
+        
+        # Obtenez la taille de l'écran pour positionner le texte en haut à droite
+        screen_width, screen_height = self.screen.get_size()
+
+        # Positionnez le texte en haut à droite, avec une petite marge
+        text_x = screen_width - fps_text.get_width() - 10
+        text_y = 10
+
+        # Dessinez le texte sur self.screen
+        self.screen.blit(fps_text, (text_x, text_y))
+
         pygame.display.flip()
 
 

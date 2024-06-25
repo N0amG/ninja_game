@@ -61,7 +61,6 @@ class Tilemap:
             else:
                 self.tilemap[tile_loc] = {'pos': tile_coordinates, 'type': tile_type, 'variant': variant}
 
-
     def chunk_mapping(self):
         self.chunks_map = {}
         offgrid_tiles = copy.deepcopy(self.offgrid_tiles)
@@ -79,24 +78,11 @@ class Tilemap:
             self.chunks_map[chunk_loc].append(tile)
         
         return self.chunks_map
-    
- 
+
     def tilemap_cleaner(self):
         self.tilemap = {}
         self.offgrid_tiles = []
 
-    def render(self, surf, offset=(0, 0)):
-                
-        for tile in self.offgrid_tiles:
-            surf.blit(self.game.assets[tile['type']][tile['variant']], (tile['pos'][0] - offset[0], tile['pos'][1] - offset[1]))
-            
-        for x in range(offset[0] // self.tile_size, (offset[0] + surf.get_width()) // self.tile_size + 1):
-            for y in range(offset[1] // self.tile_size, (offset[1] + surf.get_height()) // self.tile_size + 1):
-                loc = str(x) + ';' + str(y)
-                if loc in self.tilemap:
-                    tile = self.tilemap[loc]
-                    surf.blit(self.game.assets[tile['type']][tile['variant']], (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))
-    
     def save(self, path):
         f = open(path, 'w')
         json.dump({'tilemap': self.tilemap, 'tile_size' : self.tile_size, 'offgrid': self.offgrid_tiles}, f)
@@ -141,6 +127,18 @@ class Tilemap:
             if (neighbors in AUTOTILE_CLEANER or len(neighbors) <=1) and tile['type'] in AUTOTILE_TYPES:
                 self.add_tile(tile['pos'], tile_type = None)
 
+class Tile(pygame.sprite.Sprite):
+    def __init__(self, tile_info, game):
+        super().__init__()
+        # Utilisez game.assets pour obtenir l'image en fonction du type et de la variante de la tuile
+        # Assurez-vous que game.assets est structuré de manière à accéder aux images via ['type']['variant']
+        self.image = game.assets[tile_info['type']][tile_info['variant']]
+        
+        # La position est déterminée par 'pos', qui est une liste [x, y]
+        # Multipliez par la taille de la tuile pour obtenir la position en pixels
+        self.rect = self.image.get_rect(topleft=(tile_info['pos'][0] * 16, tile_info['pos'][1] * 16))
+
+
 
 class Chunk:
     
@@ -148,24 +146,19 @@ class Chunk:
         self.game = game
         self.size = size
         self.tile_size = tile_size
-        self.tiles = tiles
+        self.tiles = tiles # 'x;y' format
         self.entities = []
         self.leaf_spawners = []
         self.particles = []
         self.loc = loc # 'x;y' format
-
     
     def __str__(self) -> str:
         return f"chunk : {self.loc} | tiles: {len(self.tiles)} | entities: {len(self.entities)} | leaf_spawners: {len(self.leaf_spawners)}"
     
     def get_loc(self):
         return self.loc
-    
-    def add_tile(self, loc, tile):
-        tile_loc = str(int(loc[0])) + ";" + str(int(loc[1]))
-        if tile_loc not in self.offgrid_tiles:
-            self.offgrid_tiles[tile_loc] = tile
-    
+
+        
     def solid_check(self, pos):
         tile_loc = [int(pos[0]) // self.tile_size,  int(pos[1]) // self.tile_size]
         for tile in self.tiles:
@@ -180,6 +173,7 @@ class Chunk:
     def send_entity(self, entity, chunk):
         self.entities.remove(entity)
         chunk.add_entity(entity)
+        #print(entity, "sent from", self.loc, "to", chunk.loc)
     
     def add_leaf_spawners(self, leaf_spawners):
         if leaf_spawners not in self.leaf_spawners:
@@ -189,15 +183,19 @@ class Chunk:
         self.entities = []
     
     def update(self):
-        if self.loc == '0;-1': print(self)
+        entity_list = [entity.id for entity in self.entities]
         for entity in self.entities:
             if isinstance(entity, Enemy):
                 kill = entity.update(self.game.tilemap.chunksManager, (0, 0))
+                entity_chunk = self.game.tilemap.chunksManager.get_chunk(entity.rect().center)
+                if  entity_chunk!= self:
+                    self.send_entity(entity, entity_chunk)
+                    
                 if kill:
                     self.entities.remove(entity)
                     self.game.enemies.remove(entity)
                     self.game.score_update(10)
-                
+
         for rect in self.leaf_spawners:
             if random.random() * 49999 < rect.width * rect.height:
                 pos = (rect.x + random.random() * rect.width, rect.y + random.random() * rect.height)
@@ -209,18 +207,49 @@ class Chunk:
                 particle.pos[0] += math.sin(particle.animation.frame * 0.035) *0.3
             if kill:
                 self.particles.remove(particle)
-                
-    def render(self, surf, offset=(0, 0)):
-        for tile in self.tiles:
-            if tile['type'] in self.game.assets:
-                surf.blit(self.game.assets[tile['type']][tile['variant']], (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1]))
-                
-        for entity in self.entities:
-            entity.render(surf, offset)
-        
-        for leaf in self.particles:
-            leaf.render(surf, offset)
 
+
+    def render(self, surf, offset=(0, 0)):
+        compteur = [0, 0, 0, 0, 0, 0]  # [tiles, entities, leaf_spawners, particles, total, total_rendered]
+    
+        marge = 32  # Définir la marge autour de l'écran
+        largeur_ecran, hauteur_ecran = self.game.display.get_size()
+        
+    
+        # Calculer la zone visible en prenant en compte l'offset et la marge
+        zone_visible_x_min = offset[0] - marge
+        zone_visible_x_max = offset[0] + largeur_ecran + marge
+        zone_visible_y_min = offset[1] - marge
+        zone_visible_y_max = offset[1] + hauteur_ecran + marge
+
+        
+
+        tiles_group = pygame.sprite.Group()
+        
+        for tile in self.tiles:
+            x, y = tile['pos'][0] * self.tile_size, tile['pos'][1] * self.tile_size
+            if tile['type'] in self.game.assets and zone_visible_x_min <= x < zone_visible_x_max and zone_visible_y_min <= y < zone_visible_y_max:
+                #surf.blit(self.game.assets[tile['type']][tile['variant']], (x - offset[0], y - offset[1]))
+                # Création d'une instance de Sprite pour chaque tuile visible
+                tile_sprite = Tile(tile, self.game)
+                tile_sprite.rect.topleft = (x - offset[0], y - offset[1])
+                tiles_group.add(tile_sprite)
+                compteur[0] += 1
+                
+        tiles_group.draw(surf)
+        
+        for entity in self.entities:
+            if zone_visible_x_min <= entity.pos[0] < zone_visible_x_max and zone_visible_y_min <= entity.pos[1] < zone_visible_y_max:
+                entity.render(surf, offset)
+                compteur[1] += 1
+    
+        for leaf in self.particles:
+            if zone_visible_x_min <= leaf.pos[0] < zone_visible_x_max and zone_visible_y_min <= leaf.pos[1] < zone_visible_y_max:
+                leaf.render(surf, offset)
+                compteur[2] += 1
+    
+        return compteur
+    
     def extract(self, id_pairs, keep=False):
         matches = []
         for tile in self.tiles.copy():
@@ -259,8 +288,9 @@ class ChunksManager:
         self.loaded_at_least_once = set(list(self.loaded_chunks.keys()))
         self.player_chunk = self.get_chunk(self.player.rect().center)
         self.respawn_pos = None
-    
+
     def set_chunks(self, chunks):
+        self.chunks = {}
         for chunk in chunks.copy():
             self.chunks[chunk]= Chunk(self.game, chunk, chunks[chunk])
         self.load_chunks()
@@ -271,9 +301,8 @@ class ChunksManager:
     
     def add_entity(self, entity):
         entity_chunk = self.get_chunk(entity.rect().center)
-        if entity_chunk:
+        if entity_chunk != None:
             entity_chunk.add_entity(entity)
-
     
     def set_player_spawn_chunk(self, pos):
         self.respawn_pos = pos
@@ -349,7 +378,7 @@ class ChunksManager:
                     self.game.player.pos = spawner['pos']
                     self.game.player.air_time = 0
                 else:
-                    self.game.enemies.append(Enemy(self.game, spawner['pos'],self.game.id))
+                    self.game.enemies.append(Enemy(self.game, spawner['pos'], self.game.id))
                     self.game.id += 1
                     self.add_entity(self.game.enemies[-1])
     
@@ -380,6 +409,10 @@ class ChunksManager:
 
         return rects
     
+    def add_tile(self, tile):
+        chunk = self.get_chunk(tile['pos'])
+        chunk.add_tile(tile['pos'], tile)
+
     def chunks_around(self, pos=None):
         if pos is None:
             pos = self.player.rect().center
@@ -406,7 +439,7 @@ class ChunksManager:
             self.loaded_chunks = self.chunks_around()
     
     def update(self):
-        
+        #print(len(self.loaded_at_least_once))
         previous_loaded_chunks = self.loaded_at_least_once.copy() 
         
         self.load_chunks()
@@ -414,12 +447,14 @@ class ChunksManager:
         for chunk in self.loaded_chunks:
 
             self.loaded_chunks[chunk].update()
-        
+
         if previous_loaded_chunks != {} and previous_loaded_chunks != self.loaded_at_least_once:
             for chunk in self.loaded_at_least_once:
                 if chunk not in previous_loaded_chunks:
                     self.extract_init(self.loaded_chunks[chunk])
-            
+        
+        #[print(chunk.loc, end =", ") for chunk in self.loaded_chunks.values()] ; print()
+        
     def chunks_grid_render(self, surf, offset=(0, 0)):
         # Dessiner la grille des chunks
         chunk_size = self.chunk_size ** 2 # Correction : Utiliser la taille du chunk directement
@@ -455,6 +490,17 @@ class ChunksManager:
         for y in range(start_y, end_y, chunk_size):
             pygame.draw.line(surf, grid_color, (0, y), (width, y))
     
+    def displayed_tiles_number_render(self, tiles_number, surf, offset=(0, 0)):
+        font = pygame.font.Font(None, 35)
+        text_render = font.render(f"Tiles : {tiles_number}", True, (255, 255, 255))
+        surf.blit(text_render, (self.game.screen.get_width() - text_render.get_width()-10, 30))
+        
+    
     def render(self, surf, offset=(0, 0)):
-        for chunk in self.chunks:
-            self.chunks[chunk].render(surf, offset)
+        compteur = [0, 0, 0, 0, 0, 0]
+        for chunk in self.loaded_chunks:
+            compteur = [ x+y for x, y in zip(compteur, self.chunks[chunk].render(surf, offset))]
+            #self.chunks[chunk].render(surf, offset)
+
+        self.displayed_tiles_number_render(compteur[0], self.game.screen, offset)
+        return(compteur)
