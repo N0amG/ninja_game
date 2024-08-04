@@ -53,7 +53,7 @@ class Editor:
         self.tilemap = Tilemap(self, tile_size=16)
 
         try:
-            self.map_size = (512, 512)
+            self.map_size = (64, 64)
             MapGenerator(self, 'grass', self.map_size, spawn_rate=0.5)
             self.tilemap.load('data/maps/perlin_noise_map.json')
             #self.tilemap.load('data/maps/3.json')
