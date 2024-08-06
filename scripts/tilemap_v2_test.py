@@ -424,10 +424,10 @@ class ChunksManager:
     def chunks_around(self, pos=None):
         if pos is None:
             pos = list(self.player.rect().center)
-            print("player pos", pos)
+            #print("player pos", pos)
             offset = self.game.scroll
             #pos[0], pos[1] = pos[0] - offset[0], pos[1] - offset[1]
-            print("player pos - offset", pos)
+            #print("player pos - offset", pos)
         chunks_around = {}
         tile_size = self.tilemap.tile_size
         chunk_loc = (pos[0] // tile_size // self.chunk_size, pos[1] // tile_size // self.chunk_size)

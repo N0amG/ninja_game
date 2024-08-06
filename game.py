@@ -279,7 +279,6 @@ class Game:
             self.update()
             self.render()
 
-            pygame.display.update()
             self.clock.tick(self.fps)
             self.dt = 1 / (self.clock.get_fps() +1)
 
