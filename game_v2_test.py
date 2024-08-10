@@ -3,6 +3,7 @@ import os
 
 import pygame
 
+import time
 import random
 import math
 
@@ -46,6 +47,7 @@ class Game:
         
         self.fps = 75
         self.dt = 1
+        self.previous_time = time.time()
         
         self.ctx, self.render_object, self.program = shader_init()
         
@@ -304,7 +306,9 @@ class Game:
             self.render()
 
             self.clock.tick(self.fps)
-            self.dt = 1 / (self.clock.get_fps() +1)
+            now = time.time()
+            self.dt = (now - self.previous_time) * self.fps
+            self.previous_time = now
 
 
     def update(self):        
@@ -312,19 +316,19 @@ class Game:
         
         if self.dead:
             self.dead += 1
-            if self.dead > 150:
-                self.transition = min(30, self.transition+1)
+            if self.dead > 100:
+                self.transition = min(30, self.transition + 1 * self.dt)
             
             if self.dead > 200:
                 self.load_level(self.level)
 
         if not self.dead:
-            self.player.update(self.tilemap.chunksManager, (self.movement[1] - self.movement[0], 0))
+            self.player.update(self.tilemap.chunksManager, (self.movement[1] - self.movement[0], 0), dt = self.dt)
 
         # [ [x, y], direction, timer]
         for projectile in self.projectiles.copy():
-            projectile[0][0] += projectile[1]
-            projectile[2] += 1
+            projectile[0][0] += projectile[1] * self.dt
+            projectile[2] += 1 * self.dt
             
             if self.tilemap.chunksManager.solid_check(projectile[0]):
                 self.projectiles.remove(projectile)
@@ -346,18 +350,18 @@ class Game:
                     self.screenshake = max(64, self.screenshake)
                     self.sfx['hit'].play()
                     
-        self.clouds.update()
+        self.clouds.update(dt = self.dt)
         
 
         self.tilemap.chunksManager.update()
 
         for sparks in self.sparks.copy():
-            kill = sparks.update()
+            kill = sparks.update(dt = self.dt)
             if kill:
                 self.sparks.remove(sparks)
 
         for particle in self.particles.copy():
-            kill = particle.update()
+            kill = particle.update(dt = self.dt)
             if particle.type == 'leaf':
                 particle.pos[0] += math.sin(particle.animation.frame * 0.035) *0.3
             if kill:
@@ -366,14 +370,13 @@ class Game:
         
         # transition de niveau pass pour l'instant
         if not len(self.enemies):
-            self.transition += 1
+            self.transition += 1 * self.dt
             if self.transition > 30:
                 self.level = min(self.level + 1, len(os.listdir('data/maps')) -1)
                 self.load_level(self.level)
         
         if self.transition < 0:
             self.transition += 1
-
     
     
     def render(self):

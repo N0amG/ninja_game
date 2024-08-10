@@ -289,7 +289,7 @@ class Game:
         if self.dead:
             self.dead += 1
             if self.dead > 150:
-                self.transition = min(30, self.transition+1)
+                self.transition = min(30, self.transition + 1)
             
             if self.dead > 200:
                 self.load_level(self.level)

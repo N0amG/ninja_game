@@ -7,9 +7,9 @@ class Spark:
         self.angle = angle
         self.speed = speed
     
-    def update(self):
-        self.pos[0] += math.cos(self.angle) * self.speed
-        self.pos[1] += math.sin(self.angle) * self.speed
+    def update(self, dt = 1):
+        self.pos[0] += math.cos(self.angle) * self.speed * dt
+        self.pos[1] += math.sin(self.angle) * self.speed * dt
         
         self.speed = max(0, self.speed - 0.1)
         

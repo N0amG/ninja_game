@@ -8,8 +8,8 @@ class Cloud:
         self.speed = speed
         self.depth = depth
     
-    def update(self):
-        self.pos[0] += self.speed
+    def update(self, dt = 1):
+        self.pos[0] += self.speed * dt
     
     def render(self, surf, offset=(0, 0)):
         render_pos = (self.pos[0] - offset[0] * self.depth, self.pos[1] - offset[1] * self.depth)
@@ -27,9 +27,9 @@ class Clouds:
         
         self.clouds.sort(key=lambda cloud: cloud.depth)
     
-    def update(self):
+    def update(self, dt = 1):
         for cloud in self.clouds:
-            cloud.update()
+            cloud.update(dt = dt)
     
     def render(self, surf, offset=(0, 0)):
         for cloud in self.clouds:
