@@ -138,8 +138,13 @@ class Tile(pygame.sprite.Sprite):
         # Multipliez par la taille de la tuile pour obtenir la position en pixels
         self.rect = self.image.get_rect(topleft=(tile_info['pos'][0] * 16, tile_info['pos'][1] * 16))
 
-
-
+class Entity(pygame.sprite.Sprite):
+    def __init__(self, entity, offset=(0, 0)):
+        super().__init__()
+        self.image = pygame.transform.flip(entity.animation.img(), entity.flip, False)
+        self.rect = entity.rect()
+        self.rect.topleft = (entity.pos[0] - offset[0] + entity.anim_offset[0], entity.pos[1] - offset[1] + entity.anim_offset[1])
+        
 class Chunk:
     
     def __init__(self, game, loc, tiles, size=16, tile_size=16):
@@ -236,11 +241,14 @@ class Chunk:
                 tiles_group.add(tile_sprite)
                 compteur[0] += 1
                 
-        tiles_group.draw(surf)
+
+        entity_group = pygame.sprite.Group()
         
         for entity in self.entities:
             if zone_visible_x_min <= entity.pos[0] < zone_visible_x_max and zone_visible_y_min <= entity.pos[1] < zone_visible_y_max:
-                entity.render(surf, offset)
+                #entity.render(surf, offset)
+                entity_sprite = Entity(entity, offset)
+                entity_group.add(entity_sprite)
                 compteur[1] += 1
     
         for leaf in self.particles:
@@ -248,7 +256,7 @@ class Chunk:
                 leaf.render(surf, offset)
                 compteur[2] += 1
     
-        return compteur
+        return tiles_group, entity_group
     
     def extract(self, id_pairs, keep=False):
         matches = []
@@ -342,7 +350,7 @@ class ChunksManager:
                     for tile in chunks[chunk].tiles:
                         if check_loc == tile["pos"]:
                             tiles_around.append(tile)
-                                
+        #if tag == "player" : print(len(tiles_around))
         return tiles_around
 
     def solid_check(self, pos):
@@ -415,8 +423,11 @@ class ChunksManager:
 
     def chunks_around(self, pos=None):
         if pos is None:
-            pos = self.player.rect().center
-
+            pos = list(self.player.rect().center)
+            #print("player pos", pos)
+            offset = self.game.scroll
+            #pos[0], pos[1] = pos[0] - offset[0], pos[1] - offset[1]
+            #print("player pos - offset", pos)
         chunks_around = {}
         tile_size = self.tilemap.tile_size
         chunk_loc = (pos[0] // tile_size // self.chunk_size, pos[1] // tile_size // self.chunk_size)
@@ -493,14 +504,26 @@ class ChunksManager:
     def displayed_tiles_number_render(self, tiles_number, surf, offset=(0, 0)):
         font = pygame.font.Font(None, 35)
         text_render = font.render(f"Tiles : {tiles_number}", True, (255, 255, 255))
-        surf.blit(text_render, (self.game.screen.get_width() - text_render.get_width()-10, 30))
-        
+        surf.blit(text_render, (surf.get_width() - text_render.get_width()-10, 30))
+    
+    def tiles_render_init(self, surf, offset=(0, 0)):
+        for chunk in self.loaded_chunks:
+            self.loaded_chunks[chunk].tiles_render_init(surf, offset)
+
     
     def render(self, surf, offset=(0, 0)):
-        compteur = [0, 0, 0, 0, 0, 0]
-        for chunk in self.loaded_chunks:
-            compteur = [ x+y for x, y in zip(compteur, self.chunks[chunk].render(surf, offset))]
-            #self.chunks[chunk].render(surf, offset)
+        all_sprites = pygame.sprite.LayeredUpdates()
 
-        self.displayed_tiles_number_render(compteur[0], self.game.screen, offset)
-        return(compteur)
+        for chunk in self.loaded_chunks:
+            tiles_sprite, entity_sprites = self.chunks[chunk].render(surf, offset)
+            for tile in tiles_sprite:
+                all_sprites.add(tile, layer=0)  # Ajoute les tuiles à la couche 0
+            for entity in entity_sprites:
+                all_sprites.add(entity, layer=1)  # Ajoute les entités à la couche 1
+
+        all_sprites.draw(surf)
+
+        
+        if self.game.debug:
+            pass #self.displayed_tiles_number_render(len(tiles_group), self.game.screen, offset)
+

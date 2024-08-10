@@ -1,8 +1,14 @@
 import sys
 import os
 
+import pygame
+
+import time
 import random
 import math
+
+import moderngl as mgl
+from array import array
 
 from scripts.utils import load_image, load_images, Animation, load_image_switched_colorkey, load_images_switched_colorkey
 from scripts.entities import Player, Enemy
@@ -15,7 +21,6 @@ from scripts.sparks import Spark
 SCREEN_SIZE = 1
 RENDER_SCALE = 3.5 # 1.75 pour screen size de 2
 
-import pygame
 
 def rgb(r, g, b):
     return (r, g, b)
@@ -25,13 +30,16 @@ class Game:
         pygame.init()
 
         pygame.display.set_caption('ninja game')
-        self.screen = pygame.display.set_mode((1080, 720), pygame.RESIZABLE)
         
-        self.screen = pygame.display.set_mode((self.screen.get_size()[0]//SCREEN_SIZE, self.screen.get_size()[1]//SCREEN_SIZE), pygame.RESIZABLE)
+        self.screen = pygame.display.set_mode((1080, 720), pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE)
+
+        self.screen = pygame.display.set_mode((self.screen.get_size()[0]//SCREEN_SIZE, self.screen.get_size()[1]//SCREEN_SIZE), pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE)
                 
         self.display = pygame.Surface((self.screen.get_width()//RENDER_SCALE, self.screen.get_height()//RENDER_SCALE), pygame.SRCALPHA)
         
         self.display_2 = pygame.Surface(self.display.get_size(), pygame.SRCALPHA)
+        
+        self.final_display = pygame.Surface(self.display.get_size())
         
         self.display_original_size = self.display.get_size()
         
@@ -39,7 +47,9 @@ class Game:
         
         self.fps = 75
         self.dt = 1
+        self.previous_time = time.time()
         
+        self.ctx, self.render_object, self.program = shader_init()
         
         # Initialisation des manettes
         pygame.joystick.init()
@@ -140,6 +150,10 @@ class Game:
         
         self.player = Player(self, (250, 50), self.id)
 
+        self.scroll = [0, 0]
+        self.scroll[0] = self.player.rect().centerx - self.display.get_width() / 2
+        self.scroll[1] = self.player.rect().centery - self.display.get_height() / 2
+
         self.tilemap = Tilemap(self, tile_size=16)
         
         self.score = 0
@@ -173,7 +187,18 @@ class Game:
         
     def load_level(self, map_id):
         
-
+        self.tiles_display = pygame.Surface((self.display.get_width(), self.display.get_height()), pygame.SRCALPHA)
+        self.tiles_display.fill((0, 0, 0, 0))
+        
+        self.tiles_display_2 = pygame.Surface(self.tiles_display.get_size(), pygame.SRCALPHA)
+        self.tiles_display_2.fill((0, 0, 0, 0))
+        '''
+        self.tiles_mask = pygame.mask.from_surface(self.tiles_display)
+        self.tiles_mask = self.tiles_mask.to_surface(setcolor=(0, 0, 0, 180), unsetcolor=(0, 0, 0, 0))
+        for offset in [(0,-1), (0, 1), (-1, 0), (1,0)]:
+            self.tiles_display_2.blit(self.tiles_mask, offset)
+        '''
+        
         self.score_update(50) if self.level != 0 else None
         if map_id % 3 == 0:
             self.world += 1 if map_id != 0 else 0
@@ -209,7 +234,7 @@ class Game:
         self.scroll[0] = self.player.rect().centerx - self.display.get_width() / 2
         self.scroll[1] = self.player.rect().centery - self.display.get_height() / 2
         
-        self.show_chunks_grid = True
+        self.debug = True
         
         self.dead = 0
         self.screenshake = 0
@@ -234,8 +259,9 @@ class Game:
                 elif event.type == pygame.VIDEORESIZE:
                     new_width = max(self.display_original_size[0], event.w)
                     new_height = max(self.display_original_size[1], event.h)
-                    self.screen = pygame.display.set_mode((new_width, new_height), pygame.RESIZABLE)
-
+                    self.screen = pygame.display.set_mode((new_width, new_height), pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE)
+                    self.ctx.viewport = (0, 0, new_width, new_height)
+                
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         self.player.dash()
@@ -248,7 +274,7 @@ class Game:
                         if self.player.jump():
                             self.sfx['jump'].play()
                     elif event.key == pygame.K_c:
-                        self.show_chunks_grid = not self.show_chunks_grid
+                        self.debug= not self.debug
                 elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_LEFT or event.key == pygame.K_q:
                         self.movement[0] = False
@@ -280,7 +306,9 @@ class Game:
             self.render()
 
             self.clock.tick(self.fps)
-            self.dt = 1 / (self.clock.get_fps() +1)
+            now = time.time()
+            self.dt = (now - self.previous_time) * self.fps
+            self.previous_time = now
 
 
     def update(self):        
@@ -288,19 +316,19 @@ class Game:
         
         if self.dead:
             self.dead += 1
-            if self.dead > 150:
-                self.transition = min(30, self.transition + 1)
+            if self.dead > 100:
+                self.transition = min(30, self.transition + 1 * self.dt)
             
             if self.dead > 200:
                 self.load_level(self.level)
 
         if not self.dead:
-            self.player.update(self.tilemap.chunksManager, (self.movement[1] - self.movement[0], 0))
+            self.player.update(self.tilemap.chunksManager, (self.movement[1] - self.movement[0], 0), dt = self.dt)
 
         # [ [x, y], direction, timer]
         for projectile in self.projectiles.copy():
-            projectile[0][0] += projectile[1]
-            projectile[2] += 1
+            projectile[0][0] += projectile[1] * self.dt
+            projectile[2] += 1 * self.dt
             
             if self.tilemap.chunksManager.solid_check(projectile[0]):
                 self.projectiles.remove(projectile)
@@ -322,18 +350,18 @@ class Game:
                     self.screenshake = max(64, self.screenshake)
                     self.sfx['hit'].play()
                     
-        self.clouds.update()
+        self.clouds.update(dt = self.dt)
         
 
         self.tilemap.chunksManager.update()
 
         for sparks in self.sparks.copy():
-            kill = sparks.update()
+            kill = sparks.update(dt = self.dt)
             if kill:
                 self.sparks.remove(sparks)
 
         for particle in self.particles.copy():
-            kill = particle.update()
+            kill = particle.update(dt = self.dt)
             if particle.type == 'leaf':
                 particle.pos[0] += math.sin(particle.animation.frame * 0.035) *0.3
             if kill:
@@ -342,20 +370,19 @@ class Game:
         
         # transition de niveau pass pour l'instant
         if not len(self.enemies):
-            self.transition += 1
+            self.transition += 1 * self.dt
             if self.transition > 30:
                 self.level = min(self.level + 1, len(os.listdir('data/maps')) -1)
                 self.load_level(self.level)
         
         if self.transition < 0:
             self.transition += 1
-
     
     
     def render(self):
         # Remplissez self.screen avec du noir
-        self.screen.fill((0, 0, 0))
-        self.screen.blit(pygame.transform.scale(self.assets['background'], self.screen.get_size()), (0, 0))
+        self.final_display.fill((0, 0, 0))
+        self.final_display.blit(self.assets['background'], (0, 0))
         
         self.display.fill((0, 0, 0, 0))
         self.display_2.fill((0, 0, 0, 0))
@@ -372,8 +399,8 @@ class Game:
         
         self.clouds.render(self.display_2, offset=render_scroll)
         
-        compteur = [x+y for x, y in zip(compteur, self.tilemap.chunksManager.render(self.display, offset=render_scroll))]
-        
+        #compteur = [x+y for x, y in zip(compteur, self.tilemap.chunksManager.render(self.display, offset=render_scroll))]
+        self.tilemap.chunksManager.render(self.display, offset=render_scroll)
         if not self.dead:
             self.player.render(self.display, offset=render_scroll)
         
@@ -410,7 +437,6 @@ class Game:
         
         #print(compteur)
 
-        if self.show_chunks_grid: self.tilemap.chunksManager.chunks_grid_render(self.display, offset=render_scroll)
                 
         # transitions
         if self.transition:
@@ -420,40 +446,95 @@ class Game:
             self.display.blit(transition_surf, (0, 0))
 
         # Redimensionnez self.display à la taille de self.screen
-        self.display = pygame.transform.scale(self.display, self.screen.get_size())
+        self.display = pygame.transform.scale(self.display, self.final_display.get_size())
         self.display_2 = pygame.transform.scale(self.display_2, self.display.get_size())
         
         # Dessinez la copie redimensionnée de self.display au centre de self.screen
         screenshake_offset = (random.random() * self.screenshake - self.screenshake / 2, random.random() * self.screenshake - self.screenshake / 2)
         #display_rect = scaled_display.get_rect(center=tuple(a + b for a, b in zip(self.screen.get_rect().center, screenshake_offset)))
+
+        #self.tilemap.chunksManager.displayed_tiles_number_render(compteur[0], self.screen, offset)
+
+        if self.debug:
+            self.tilemap.chunksManager.chunks_grid_render(self.display, offset=render_scroll)
         
-
-        self.screen.blit(self.display_2, screenshake_offset)
-        self.screen.blit(self.display, screenshake_offset)
-
-
+        self.final_display.blit(self.display_2, screenshake_offset)
+        self.final_display.blit(self.display, screenshake_offset)
+        
         # Créez un objet de police pour dessiner le texte
-        font = pygame.font.Font(None, 35)  # Utilisez None pour la police par défaut de pygame, et 24 pour la taille
+        font = pygame.font.Font(None, 20)  # Utilisez None pour la police par défaut de pygame, et 24 pour la taille
 
         # Créez le texte des FPS minimum
         fps_text = font.render(f"FPS: {int(self.clock.get_fps())}", True, (255, 255, 255))
         
         
-        #self.tilemap.chunksManager.displayed_tiles_number_render(compteur[0], self.screen, offset)
-        
-        
         # Obtenez la taille de l'écran pour positionner le texte en haut à droite
-        screen_width, screen_height = self.screen.get_size()
+        screen_width, screen_height = self.final_display.get_size()
 
         # Positionnez le texte en haut à droite, avec une petite marge
         text_x = screen_width - fps_text.get_width() - 10
         text_y = 10
 
-        # Dessinez le texte sur self.screen
-        self.screen.blit(fps_text, (text_x, text_y))
+        self.final_display.blit(fps_text, (text_x, text_y))
+
+        
+        
+        frame_texture = surface_to_texture(self.ctx, self.final_display)
+        frame_texture.use(0)
+        self.program['texture'] = 0
+        self.render_object.render(mode = mgl.TRIANGLE_STRIP)
 
         pygame.display.flip()
+        frame_texture.release()
 
+
+def shader_init() -> tuple[mgl.Context, mgl.VertexArray, mgl.Program]:
+    ctx = mgl.create_context()
+    
+    quad_buffer = ctx.buffer(data = array('f', [
+    -1.0, 1.0, 0.0, 0.0, # topleft
+    1.0, 1.0, 1.0, 0.0, # topright
+    -1.0, -1.0, 0.0, 1.0, # bottomleft
+    1.0, -1.0, 1.0, 1.0, # bottomright
+    ]))
+
+    vert_shader = '''
+    #version 330
+
+    in vec2 vert;
+    in vec2 texcoord;
+    out vec2 uvs;
+
+    void main() {
+        uvs = texcoord;
+        gl_Position = vec4(vert, 0.0, 1.0);
+    }
+    '''
+
+    frag_shader = '''
+    #version 330
+
+    uniform sampler2D texture;
+
+    in vec2 uvs;
+    out vec4 fragColor;
+
+    void main() {
+        fragColor = vec4(texture(texture, uvs).rgb, 1.0);
+    }
+    '''
+
+    program = ctx.program(vertex_shader=vert_shader, fragment_shader=frag_shader)
+    render_object = ctx.vertex_array(program, [(quad_buffer, '2f 2f', 'vert', 'texcoord')])
+    
+    return ctx, render_object, program
+
+def surface_to_texture(ctx, surface):
+    texture = ctx.texture(surface.get_size(), 4)
+    texture.filter = (mgl.NEAREST, mgl.NEAREST)
+    texture.swizzle = 'BGRA'
+    texture.write(surface.get_view('1'))
+    return texture
 
 def clean():
     for folder in os.listdir('scripts'):
